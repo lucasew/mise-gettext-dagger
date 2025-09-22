@@ -69,7 +69,14 @@ class MiseGettextDagger:
     @function
     async def teste_build(self, version: str = "0.26") -> dagger.Directory:
         source = await self.fetch_source(GettextVersion.from_version(version))
-        return source
+        return (
+            dag.container()
+                .with_directory(f"/build/{version}-linux-amd64", self.build_linux_amd64(source))
+                .with_directory(f"/build/{version}-linux-aarch64", self.build_linux_aaarch64(source))
+                .with_directory(f"/build/{version}-windows-amd64", self.build_windows_amd64(source))
+                .with_directory(f"/build/{version}-windows-aarch64", self.build_windows_aarch64(source))
+                .directory("/build")
+        )
 
     @function
     async def fetch_tarball(self, tarball: dagger.File, signature: dagger.File, valid_keys: List[str] =[]) -> dagger.Directory:
@@ -95,12 +102,63 @@ class MiseGettextDagger:
             
     
     @function
-    def base_container(self) -> dagger.Container:
+    def base_build_container(self) -> dagger.Container:
         return dag.container().from_("debian:stable")
 
     @function
-    def build_linux(self, source: dagger.Directory) -> dagger.Directory:
-        return source # TODO: fazer
+    def build_linux_amd64(self, source: dagger.Directory) -> dagger.Directory:
+        return (
+            self.base_build_container()
+            .with_directory("/src", source)
+            .with_workdir("/src")
+            .with_exec(["apt", "update"])
+            .with_exec(["apt", "install", "-y", "build-essential"])
+            .with_exec(["./configure", '--prefix=/out'])
+            .with_exec(["make", "install"])
+            .directory("/out")
+        )
+    @function
+    def build_linux_aaarch64(self, source: dagger.Directory) -> dagger.Directory:
+        return (
+            self.base_build_container()
+            .with_directory("/src", source)
+            .with_workdir("/src")
+            .with_exec(["apt", "update"])
+            .with_exec(["apt", "install", "-y", "build-essential"])
+            .with_exec(["apt", "install", "-y", "crossbuild-essential-arm64"])
+            .with_exec(["./configure", '--prefix=/out', "--host=arm-linux-gnueabihf", "--build=x86_64-linux-gnu"])
+            .with_exec(["make", "install"])
+            .directory("/out")
+        )
+
+    @function
+    def build_windows_amd64(self, source: dagger.Directory) -> dagger.Directory:
+        return (
+            self.base_build_container()
+            .with_directory("/src", source)
+            .with_workdir("/src")
+            .with_exec(["apt", "update"])
+            .with_exec(["apt", "install", "-y", "build-essential"])
+            .with_exec(["apt", "install", "-y", "mingw-w64-tools", "gcc-x86_64-w64-mingw32"])
+            .with_exec(["./configure", '--prefix=/out', "--host=x86_64-w64-mingw32", "--target=x86_64-w64-mingw32", "--build=x86_64-linux-gnu"])
+            .with_exec(["make", "install"])
+            .directory("/out")
+        )
+    @function
+    def build_windows_aarch64(self, source: dagger.Directory) -> dagger.Directory:
+        return (
+            self.base_build_container()
+            .with_directory("/src", source)
+            .with_workdir("/src")
+            .with_exec(["apt", "update"])
+            .with_exec(["apt", "install", "-y", "build-essential"])
+            .with_exec(["apt", "install", "-y", "mingw-w64-tools", "gcc-aarch64-w64-mingw32"])
+            .with_exec(["./configure", '--prefix=/out', "--host=x86_64-w64-mingw32", "--target=aarch64-w64-mingw32", "--build=x86_64-linux-gnu"])
+            .with_exec(["make", "install"])
+            .directory("/out")
+        )
+
+
 
 if __name__ == '__main__':
     print(list(GettextVersion.get_versions()))
