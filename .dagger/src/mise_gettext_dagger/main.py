@@ -6,7 +6,7 @@ import bs4
 import re
 from bs4 import BeautifulSoup
 from collections import defaultdict
-from typing import Iterable
+from typing import Iterable, List
 
 # @object_type
 @dataclass
@@ -16,13 +16,16 @@ class GettextVersion:
     version: str
 
     @staticmethod
+    def mirror() -> str:
+        return "https://mirrors.ocf.berkeley.edu/gnu/"
+
+    @staticmethod
     def base_url() -> str:
-        return "https://ftp.gnu.org/gnu/gettext/"
+        return GettextVersion.mirror() + "/gettext/"
 
     @staticmethod
     def tarball_base_url() -> str:
-        # return "https://ftp.gnu.org/gnu/gettext/gettext-%version%.tar.gz"
-        return "https://github.com/autotools-mirror/gettext/archive/refs/tags/v%version%.tar.gz"
+        return GettextVersion.base_url() + "/gettext-%version%.tar.gz"
     
     @staticmethod
     def from_version(version: str) -> 'GettextVersion':
@@ -69,24 +72,26 @@ class MiseGettextDagger:
         return source
 
     @function
-    async def fetch_tarball(self, tarball: dagger.File, signature: dagger.File) -> dagger.Directory:
+    async def fetch_tarball(self, tarball: dagger.File, signature: dagger.File, valid_keys: List[str] =[]) -> dagger.Directory:
         return (
             await dag.container()
             .from_("alpine:latest")
             .with_exec(["apk", "add", "gnupg"])
             .with_file("/source.tar", tarball)
             .with_file("/signature.sig", signature)
+            .with_exec(["gpg", "--recv-keys", *valid_keys])
+            .with_exec(["gpg", "--verify", "signature.sig", "source.tar"])
             .with_exec(["mkdir", "-p", "/src"])
             .with_exec(["tar", "-xvf", "/source.tar", "-C", "/src", "--strip-components", "1"])
             .directory("/src")
         )
 
     def fetch_source(self, version: GettextVersion) -> dagger.Directory:
-        source = self.fetch_tarball(
+        return self.fetch_tarball(
             tarball=dag.http(version.tarball_url),
-            signature=dag.http(version.sig_url)
+            signature=dag.http(version.sig_url),
+            valid_keys=["B6301D9E1BBEAC08", "F5BE8B267C6A406D", "4F494A942E4616C2"]
         )
-        return source
             
     
     @function
@@ -96,10 +101,6 @@ class MiseGettextDagger:
     @function
     def build_linux(self, source: dagger.Directory) -> dagger.Directory:
         return source # TODO: fazer
-
-    @function
-    def git_clone(self):
-        return dag.git("https://git.savannah.gnu.org/git/gettext.git", keep_git_dir=True)
 
 if __name__ == '__main__':
     print(list(GettextVersion.get_versions()))
