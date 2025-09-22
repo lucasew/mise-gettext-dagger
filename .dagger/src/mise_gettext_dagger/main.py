@@ -56,7 +56,6 @@ class GettextVersion:
             match = match.groupdict()
             has_sig = match['sig'] is not None
             versions[match['version']]['sig_url' if has_sig else 'tarball_url'] = href
-        print(versions)
         for (k, v) in versions.items():
             yield GettextVersion(
                 tarball_url=GettextVersion.base_url() + v['tarball_url'],
@@ -67,21 +66,27 @@ class GettextVersion:
 @object_type
 class MiseGettextDagger:
     @function
-    async def teste_build(self, version: str = "0.26") -> dagger.Directory:
-        source = await self.fetch_source(GettextVersion.from_version(version))
-        return (
+    def teste_build(self, version: str = "0.26") -> dagger.Directory:
+        source = self.fetch_source(GettextVersion.from_version(version))
+        mapping = {
+            "linux-amd64": self.build_linux_amd64(source),
+            "linux-aarch64": self.build_linux_aaarch64(source),
+            # "windows-amd64": self.build_windows_amd64(source),
+            "src": source
+        }
+        ret = (
             dag.container()
-                .with_directory(f"/build/{version}-linux-amd64", self.build_linux_amd64(source))
-                .with_directory(f"/build/{version}-linux-aarch64", self.build_linux_aaarch64(source))
-                .with_directory(f"/build/{version}-windows-amd64", self.build_windows_amd64(source))
-                .with_directory(f"/build/{version}-windows-aarch64", self.build_windows_aarch64(source))
-                .directory("/build")
+            .from_('alpine:latest')
+            .with_exec(["mkdir", "-p", "/target"])
         )
+        for (k, v) in mapping.items():
+            ret = ret.with_directory(f"{version}-{k}", v).with_exec(["tar", "-cvzf", f"/target/{version}-{k}.tar.gz", f"{version}-{k}"])
+        return ret.directory("/target")
 
     @function
-    async def fetch_tarball(self, tarball: dagger.File, signature: dagger.File, valid_keys: List[str] =[]) -> dagger.Directory:
+    def fetch_tarball(self, tarball: dagger.File, signature: dagger.File, valid_keys: List[str] =[]) -> dagger.Directory:
         return (
-            await dag.container()
+            dag.container()
             .from_("alpine:latest")
             .with_exec(["apk", "add", "gnupg"])
             .with_file("/source.tar", tarball)
@@ -139,24 +144,24 @@ class MiseGettextDagger:
             .with_workdir("/src")
             .with_exec(["apt", "update"])
             .with_exec(["apt", "install", "-y", "build-essential"])
-            .with_exec(["apt", "install", "-y", "mingw-w64-tools", "gcc-x86_64-w64-mingw32"])
+            .with_exec(["apt", "install", "-y", "mingw-w64", "mingw-w64-tools", "mingw-w64-common", "gcc-mingw-w64-x86-64-win32"])
             .with_exec(["./configure", '--prefix=/out', "--host=x86_64-w64-mingw32", "--target=x86_64-w64-mingw32", "--build=x86_64-linux-gnu"])
             .with_exec(["make", "install"])
             .directory("/out")
         )
-    @function
-    def build_windows_aarch64(self, source: dagger.Directory) -> dagger.Directory:
-        return (
-            self.base_build_container()
-            .with_directory("/src", source)
-            .with_workdir("/src")
-            .with_exec(["apt", "update"])
-            .with_exec(["apt", "install", "-y", "build-essential"])
-            .with_exec(["apt", "install", "-y", "mingw-w64-tools", "gcc-aarch64-w64-mingw32"])
-            .with_exec(["./configure", '--prefix=/out', "--host=x86_64-w64-mingw32", "--target=aarch64-w64-mingw32", "--build=x86_64-linux-gnu"])
-            .with_exec(["make", "install"])
-            .directory("/out")
-        )
+    # @function
+    # def build_windows_aarch64(self, source: dagger.Directory) -> dagger.Directory:
+    #     return (
+    #         self.base_build_container()
+    #         .with_directory("/src", source)
+    #         .with_workdir("/src")
+    #         .with_exec(["apt", "update"])
+    #         .with_exec(["apt", "install", "-y", "build-essential"])
+    #         .with_exec(["apt", "install", "-y", "mingw-w64-tools", "gcc-aarch64-w64-mingw32"])
+    #         .with_exec(["./configure", '--prefix=/out', "--host=x86_64-w64-mingw32", "--target=aarch64-w64-mingw32", "--build=x86_64-linux-gnu"])
+    #         .with_exec(["make", "install"])
+    #         .directory("/out")
+    #     )
 
 
 
