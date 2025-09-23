@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+
+function build_release {
+  VERSION="$1"; shift
+  cat /dev/empty | gh release create "$VERSION" --target empty || true # if it exists no problem, I D E M P O T E N C Y
+  dagger call build-version --version "$VERSION" export --path target
+  gh release upload "$VERSION" --clobber ./target/"$VERSION"/*
+}
+
+# shellcheck disable=SC2206
+versions_to_build=($*)
+
+if [ $# -eq 0 ]; then
+  dagger call version-list export --path upstream_versions.txt
+  gh release list --json tagName | jq '.[].tagName' -r > released_versions.txt
+
+  # shellcheck disable=SC2207
+  missing_versions=($(diff released_versions.txt upstream_versions.txt | grep -e '^< ' | sed 's;^< ;;'))
+  versions_to_build=("${missing_versions[$@]}")
+fi
+
+for version in "${versions_to_build[@]}"; do
+  build_release "$version"
+done

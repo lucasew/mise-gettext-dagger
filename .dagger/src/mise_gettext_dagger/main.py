@@ -2,7 +2,6 @@ import dagger
 from dagger import dag, function, object_type
 import requests
 from dataclasses import dataclass
-import bs4
 import re
 from bs4 import BeautifulSoup
 from collections import defaultdict
@@ -38,7 +37,7 @@ class GettextVersion:
     @staticmethod
     def get_versions() -> Iterable['GettextVersion']:
         regex = r"gettext-(?P<version>.*?).tar.gz(?P<sig>\.sig)?"
-        res = requests.get(GettextVersion.base_url())
+        res = requests.get("https://ftp.gnu.org/gnu/gettext/")
         tree = BeautifulSoup(res.text)
         versions = defaultdict(lambda: {})
         for item in tree.find("table").children:
@@ -57,11 +56,14 @@ class GettextVersion:
             has_sig = match['sig'] is not None
             versions[match['version']]['sig_url' if has_sig else 'tarball_url'] = href
         for (k, v) in versions.items():
-            yield GettextVersion(
-                tarball_url=GettextVersion.base_url() + v['tarball_url'],
-                sig_url=GettextVersion.base_url() + v['sig_url'],
-                version=k
-            )
+            try:
+                yield GettextVersion(
+                    tarball_url=GettextVersion.base_url() + v['tarball_url'],
+                    sig_url=GettextVersion.base_url() + v['sig_url'],
+                    version=k
+                )
+            except KeyError:
+                continue
 
 @object_type
 class MiseGettextDagger:
@@ -82,6 +84,10 @@ class MiseGettextDagger:
         for (k, v) in mapping.items():
             ret = ret.with_directory(f"{version}-{k}", v).with_exec(["tar", "-cvzf", f"/target/{version}/{version}-{k}.tar.gz", f"{version}-{k}"])
         return ret.directory("/target")
+
+    @function
+    def version_list(self) -> dagger.File:
+        return dag.file("versions.txt", "\n".join([v.version for v in GettextVersion.get_versions()]))
 
     @function
     def fetch_tarball(self, tarball: dagger.File, signature: dagger.File, valid_keys: List[str] =[]) -> dagger.Directory:
