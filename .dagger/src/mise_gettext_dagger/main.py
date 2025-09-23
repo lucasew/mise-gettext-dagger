@@ -66,21 +66,21 @@ class GettextVersion:
 @object_type
 class MiseGettextDagger:
     @function
-    def teste_build(self, version: str = "0.26") -> dagger.Directory:
+    def build_version(self, version: str = "0.26") -> dagger.Directory:
         source = self.fetch_source(GettextVersion.from_version(version))
         mapping = {
             "linux-amd64": self.build_linux_amd64(source),
             "linux-aarch64": self.build_linux_aaarch64(source),
-            # "windows-amd64": self.build_windows_amd64(source),
+            # "windows-amd64": self.build_windows_amd64(source), # broken
             "src": source
         }
         ret = (
             dag.container()
             .from_('alpine:latest')
-            .with_exec(["mkdir", "-p", "/target"])
+            .with_exec(["mkdir", "-p", f"/target/{version}"])
         )
         for (k, v) in mapping.items():
-            ret = ret.with_directory(f"{version}-{k}", v).with_exec(["tar", "-cvzf", f"/target/{version}-{k}.tar.gz", f"{version}-{k}"])
+            ret = ret.with_directory(f"{version}-{k}", v).with_exec(["tar", "-cvzf", f"/target/{version}/{version}-{k}.tar.gz", f"{version}-{k}"])
         return ret.directory("/target")
 
     @function
