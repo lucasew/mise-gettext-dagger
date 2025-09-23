@@ -11,7 +11,7 @@ function build_release {
 # shellcheck disable=SC2206
 versions_to_build=($*)
 
-if [ $# -eq 0 ]; then
+if [ "${#versions_to_build[@]}" -eq 0 ]; then
   dagger call version-list export --path upstream_versions.txt
   gh release list --json tagName | jq '.[].tagName' -r > released_versions.txt
 
