@@ -108,7 +108,9 @@ class MiseGettextDagger:
         return self.fetch_tarball(
             tarball=dag.http(version.tarball_url),
             signature=dag.http(version.sig_url),
-            valid_keys=["B6301D9E1BBEAC08", "F5BE8B267C6A406D", "4F494A942E4616C2"]
+            valid_keys=[
+                "B6301D9E1BBEAC08", "F5BE8B267C6A406D", "4F494A942E4616C2" # Bruno Haible
+            ]
         )
             
     
