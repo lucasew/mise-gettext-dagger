@@ -12,6 +12,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # to create releases
     steps:
       - uses: actions/checkout@v5
       - uses: jdx/mise-action@v3
