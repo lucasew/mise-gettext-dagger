@@ -3,8 +3,8 @@
 
 function build_release {
   VERSION="$1"; shift
-  echo "" | gh release create "$VERSION" --target empty || true # if it exists no problem, I D E M P O T E N C Y
   dagger call build-version --version "$VERSION" export --path target
+  echo "" | gh release create "$VERSION" --target empty || true # if it exists no problem, I D E M P O T E N C Y
   gh release upload "$VERSION" --clobber ./target/"$VERSION"/*
 }
 
