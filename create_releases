@@ -16,8 +16,17 @@ if [ $# -eq 0 ]; then
   gh release list --json tagName | jq '.[].tagName' -r > released_versions.txt
 
   # shellcheck disable=SC2207
-  missing_versions=($(diff released_versions.txt upstream_versions.txt | grep -e '^< ' | sed 's;^< ;;'))
-  versions_to_build=("${missing_versions[$@]}")
+  versions_to_build=($(diff -w upstream_versions.txt released_versions.txt | grep -e '^< ' | sed 's;^< ;;'))
+fi
+
+# shellcheck disable=SC2145
+echo "Versions to be build: "
+for version in "${versions_to_build[@]}"; do
+  printf "\tVersion: %s\n" "$version"
+done
+
+if [[ -v DRY_RUN ]]; then
+  exit 0
 fi
 
 for version in "${versions_to_build[@]}"; do
