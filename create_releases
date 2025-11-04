@@ -1,34 +1,70 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
+# Configuration
+BUILD_DIR="${BUILD_DIR:-build}"
+PLATFORMS="${PLATFORMS:-linux-amd64 linux-aarch64}"
 
 function build_release {
   VERSION="$1"; shift
-  dagger call build-version --version "$VERSION" export --path target
+
+  echo "Building gettext version ${VERSION}..."
+
+  # Create build directory
+  mkdir -p "${BUILD_DIR}"
+  cd "${BUILD_DIR}"
+
+  # Configure CMake
+  cmake .. \
+    -DGETTEXT_VERSION="${VERSION}" \
+    -DBUILD_PLATFORMS="${PLATFORMS// /;}"
+
+  # Build all platforms
+  cmake --build . -j "$(nproc)"
+
+  cd ..
+
+  # Create GitHub release
   echo "" | gh release create "$VERSION" --target empty || true # if it exists no problem, I D E M P O T E N C Y
-  gh release upload "$VERSION" --clobber ./target/"$VERSION"/*
+
+  # Upload built artifacts
+  gh release upload "$VERSION" --clobber "${BUILD_DIR}/target/${VERSION}"/*
+
+  echo "✓ Successfully built and uploaded release ${VERSION}"
 }
 
 # shellcheck disable=SC2206
 versions_to_build=($*)
 
 if [ "${#versions_to_build[@]}" -eq 0 ]; then
-  dagger call version-list export --path upstream_versions.txt
+  # Get list of available versions
+  ./scripts/list_versions.py > upstream_versions.txt
+
+  # Get list of already released versions
   gh release list --json tagName | jq '.[].tagName' -r > released_versions.txt
 
+  # Find versions that need to be built
   # shellcheck disable=SC2207
   versions_to_build=($(diff -w upstream_versions.txt released_versions.txt | grep -e '^< ' | sed 's;^< ;;'))
+
+  # Clean up temp files
+  rm -f upstream_versions.txt released_versions.txt
 fi
 
 # shellcheck disable=SC2145
-echo "Versions to be build: "
+echo "Versions to be built: "
 for version in "${versions_to_build[@]}"; do
   printf "\tVersion: %s\n" "$version"
 done
 
 if [[ -v DRY_RUN ]]; then
+  echo "DRY_RUN mode - exiting without building"
   exit 0
 fi
 
+# Build each version
 for version in "${versions_to_build[@]}"; do
   build_release "$version"
 done
+
+echo "✓ All releases built successfully!"

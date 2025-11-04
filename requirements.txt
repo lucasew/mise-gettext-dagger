@@ -1,0 +1,8 @@
+# Python dependencies for gettext-bin build scripts
+
+# For fetching and parsing GNU gettext versions
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+
+# HTML parser for BeautifulSoup
+html5lib>=1.1
