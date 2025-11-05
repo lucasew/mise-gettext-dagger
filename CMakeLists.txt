@@ -61,6 +61,9 @@ elseif(BUILD_TARGET_NAME STREQUAL "windows-amd64")
         --disable-shared
         --enable-static
         --disable-relocatable
+        --disable-threads
+        --disable-libasprintf
+        --disable-c++
     )
 else()
     message(FATAL_ERROR "Unknown BUILD_TARGET: ${BUILD_TARGET_NAME}. Supported: linux-amd64, windows-amd64")
