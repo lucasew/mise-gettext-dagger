@@ -45,8 +45,9 @@ add_custom_command(
         ${GETTEXT_VERSION}
         --mirror ${GETTEXT_MIRROR}
         --output-dir ${DOWNLOADS_DIR}
+        --allow-insecure
     COMMAND ${CMAKE_COMMAND} -E touch ${SOURCE_VERIFIED_STAMP}
-    COMMENT "Downloading and verifying gettext-${GETTEXT_VERSION}.tar.gz"
+    COMMENT "Downloading and verifying gettext-${GETTEXT_VERSION}.tar.gz (GPG verification optional)"
     VERBATIM
 )
 

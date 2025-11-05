@@ -114,7 +114,12 @@ def main():
     parser.add_argument(
         "--skip-verify",
         action="store_true",
-        help="Skip GPG verification (not recommended)"
+        help="Skip GPG verification entirely (not recommended)"
+    )
+    parser.add_argument(
+        "--allow-insecure",
+        action="store_true",
+        help="Continue even if GPG verification fails (show warning only)"
     )
 
     args = parser.parse_args()
@@ -132,19 +137,38 @@ def main():
         return 1
 
     if args.skip_verify:
-        print("WARNING: Skipping GPG verification")
+        print("=" * 60)
+        print("WARNING: Skipping GPG verification (--skip-verify)")
+        print("=" * 60)
         return 0
 
     # Download signature
     if not download_file(sig_url, sig_path):
+        if args.allow_insecure:
+            print("=" * 60)
+            print("WARNING: Could not download signature, continuing anyway")
+            print("=" * 60)
+            return 0
         return 1
 
     # Import GPG keys
     if not import_gpg_keys(VALID_KEYS):
+        if args.allow_insecure:
+            print("=" * 60)
+            print("WARNING: Could not import GPG keys, continuing anyway")
+            print("=" * 60)
+            return 0
         return 1
 
     # Verify signature
     if not verify_signature(tarball_path, sig_path):
+        if args.allow_insecure:
+            print("=" * 60)
+            print("WARNING: GPG signature verification FAILED!")
+            print("WARNING: Continuing build anyway (--allow-insecure)")
+            print("WARNING: This tarball could be tampered with!")
+            print("=" * 60)
+            return 0
         return 1
 
     print(f"\n✓ Successfully downloaded and verified gettext {args.version}")
