@@ -32,10 +32,9 @@ jobs:
       - name: Pull buildenv container
         run: docker pull ghcr.io/actions-precompiled/buildenv:0.0.1
 
-      - name: Test build for linux-amd64
+      - name: Test build for all targets
         env:
           LOCAL_BUILD: "1"
-          TARGETS: "linux-amd64"
         run: |
           # Test with a known stable version
           ./create_releases 0.22.5
@@ -45,13 +44,16 @@ jobs:
           echo "Checking for build artifacts..."
           ls -lh target/0.22.5/
 
-          # Verify zip was created
-          if [ ! -f target/0.22.5/gettext-0.22.5-linux-amd64.zip ]; then
-            echo "ERROR: Expected zip file not found"
-            exit 1
-          fi
+          # Verify all target zips were created
+          for target in linux-amd64 linux-aarch64 windows-amd64; do
+            if [ ! -f target/0.22.5/gettext-0.22.5-${target}.zip ]; then
+              echo "ERROR: Expected zip file for ${target} not found"
+              exit 1
+            fi
+            echo "✓ Found gettext-0.22.5-${target}.zip"
+          done
 
-          echo "✓ Build artifacts verified"
+          echo "✓ All build artifacts verified"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
