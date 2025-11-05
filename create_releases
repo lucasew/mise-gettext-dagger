@@ -20,7 +20,9 @@ function build_target {
     echo "Building ${VERSION} for ${TARGET}..."
 
     # Run CMake build in Docker container
+    # Use --entrypoint to bypass buildenv's automatic entrypoint since we're using autotools, not CMake
     docker run --rm \
+        --entrypoint="" \
         -v "$(pwd):/src:ro" \
         -v "${OUTPUT_DIR}:/out" \
         -e GETTEXT_VERSION="${VERSION}" \
