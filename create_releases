@@ -3,11 +3,33 @@ set -euo pipefail
 
 # Configuration
 BUILDENV_VERSION="0.0.1"
+BUILDENV_IMAGE="ghcr.io/actions-precompiled/buildenv"
 TARGETS="${TARGETS:-linux-amd64 linux-aarch64 windows-amd64}"
+MIRROR="${GETTEXT_MIRROR:-https://mirrors.ocf.berkeley.edu/gnu/gettext}"
 
 # Parse command line arguments for versions, or auto-detect
 # shellcheck disable=SC2206
 versions_to_build=($*)
+
+function build_target {
+    local VERSION="$1"
+    local TARGET="$2"
+    local OUTPUT_DIR="$3"
+
+    echo ""
+    echo "Building ${VERSION} for ${TARGET}..."
+
+    # Run CMake build in Docker container
+    docker run --rm \
+        -v "$(pwd):/src:ro" \
+        -v "${OUTPUT_DIR}:/out" \
+        -e GETTEXT_VERSION="${VERSION}" \
+        -e BUILD_TARGET="${TARGET}" \
+        -e GETTEXT_MIRROR="${MIRROR}" \
+        -w /src \
+        "${BUILDENV_IMAGE}:${BUILDENV_VERSION}" \
+        bash -c "cmake -S . -B /tmp/cmake-build && cmake --build /tmp/cmake-build"
+}
 
 function build_release {
     VERSION="$1"; shift
@@ -21,29 +43,14 @@ function build_release {
     rm -rf target/"${VERSION}"
     mkdir -p target/"${VERSION}"
 
+    # Pull buildenv container once
+    echo "Pulling ${BUILDENV_IMAGE}:${BUILDENV_VERSION}..."
+    docker pull "${BUILDENV_IMAGE}:${BUILDENV_VERSION}"
+
     # Build for each target platform
     for TARGET in ${TARGETS}; do
-        echo ""
-        echo "Building for ${TARGET}..."
-
-        BUILD_DIR="build-${VERSION}-${TARGET}"
-        rm -rf "${BUILD_DIR}"
-
-        # Configure and build
-        GETTEXT_VERSION="${VERSION}" BUILD_TARGET="${TARGET}" \
-            cmake -B "${BUILD_DIR}" \
-            -DGETTEXT_VERSION="${VERSION}" \
-            -DBUILD_TARGET="${TARGET}" \
-            -DBUILDENV_VERSION="${BUILDENV_VERSION}"
-
-        cmake --build "${BUILD_DIR}"
-
-        # Collect artifacts
-        if [ -d "${BUILD_DIR}/out" ]; then
-            cp -v "${BUILD_DIR}"/out/*.tar.gz target/"${VERSION}"/
-        else
-            echo "WARNING: No output found in ${BUILD_DIR}/out"
-        fi
+        OUTPUT_DIR="$(pwd)/target/${VERSION}"
+        build_target "${VERSION}" "${TARGET}" "${OUTPUT_DIR}"
     done
 
     echo ""

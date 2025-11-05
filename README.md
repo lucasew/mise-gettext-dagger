@@ -14,9 +14,8 @@ All builds run inside Docker containers (`ghcr.io/actions-precompiled/buildenv:0
 ## Prerequisites
 
 - **Docker** - For containerized builds
-- **CMake 3.20+** - Build system
 - **uv** - Python package manager (for helper scripts)
-- **GnuPG** - For GPG signature verification
+- **GnuPG** - For GPG signature verification (optional)
 - **GitHub CLI (gh)** - For automated releases (optional)
 
 ### Install uv
@@ -31,142 +30,58 @@ mise use -g uv
 
 ## Quick Start
 
-### Build a Specific Version and Target
+### Build Specific Version
 
 ```bash
-# Set environment variables
-export GETTEXT_VERSION=0.22.5
-export BUILD_TARGET=linux-amd64
-
-# Configure and build
-cmake -B build
-cmake --build build
-
-# Output: build/out/0.22.5-linux-amd64.tar.gz
-```
-
-### Build Multiple Targets
-
-```bash
-# Build for all platforms
+# Build all platforms
 ./create_releases 0.22.5
 
-# Build for specific platforms
-TARGETS="linux-amd64 linux-aarch64" ./create_releases 0.22.5
+# Build specific platforms only
+TARGETS="linux-amd64" ./create_releases 0.22.5
+
+# Test build without creating GitHub release
+LOCAL_BUILD=1 ./create_releases 0.22.5
+```
+
+### Auto-detect and Build Missing Versions
+
+```bash
+# Automatically builds versions that don't have releases yet
+./create_releases
 ```
 
 ## How It Works
 
-1. **Download & Verify**: Downloads gettext source tarball and verifies GPG signature
-2. **Docker Build**: Runs `docker-build.sh` inside buildenv container with `BUILD_TARGET` set
-3. **Configure & Compile**: Script automatically selects toolchain and builds gettext
-4. **Package**: Creates tarball with installed binaries
-
-### Architecture
+The `create_releases` script orchestrates everything:
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  create_releases (bash)                                 │
-│  ├─ Iterates over BUILD_TARGET (linux-amd64, ...)      │
-│  └─ Calls CMake for each target                        │
-└─────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────┐
-│  CMakeLists.txt                                         │
-│  ├─ Downloads & verifies source (scripts/verify_gpg.py)│
-│  ├─ Runs docker with BUILD_TARGET env var              │
-│  └─ Mounts /src (ro) and /out (rw)                     │
-└─────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────┐
-│  ghcr.io/actions-precompiled/buildenv:0.0.1             │
-│  └─ Executes /src/docker-build.sh                      │
-└─────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────┐
-│  docker-build.sh                                        │
-│  ├─ Downloads tarball                                  │
-│  ├─ Configures with appropriate --host based on TARGET │
-│  ├─ Builds with make -j$(nproc)                        │
-│  └─ Creates .tar.gz in /out                            │
-└─────────────────────────────────────────────────────────┘
+create_releases
+  ├─ Pulls ghcr.io/actions-precompiled/buildenv:0.0.1
+  ├─ For each TARGET (linux-amd64, linux-aarch64, windows-amd64):
+  │   ├─ Generates build script inline
+  │   ├─ Runs docker with:
+  │   │   ├─ GETTEXT_VERSION env var
+  │   │   ├─ BUILD_TARGET env var
+  │   │   └─ /out volume mount
+  │   └─ Inside container:
+  │       ├─ Downloads tarball from GNU mirror
+  │       ├─ Configures with appropriate --host for cross-compilation
+  │       ├─ Builds with make -j$(nproc)
+  │       ├─ Installs to /tmp/install
+  │       └─ Creates tarballs in /out
+  └─ Uploads to GitHub releases (unless LOCAL_BUILD=1)
 ```
 
-## Automated Releases
-
-### create_releases Script
-
-The `create_releases` script automates building and uploading to GitHub releases:
-
-```bash
-# Build specific versions
-./create_releases 0.22.5 0.22.4
-
-# Auto-detect missing versions
-./create_releases
-
-# Test build without creating releases
-LOCAL_BUILD=1 ./create_releases 0.22.5
-
-# Dry run
-DRY_RUN=1 ./create_releases
-```
-
-### Environment Variables
+## Environment Variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `GETTEXT_VERSION` | Version to build | 0.22.5 |
-| `BUILD_TARGET` | Target platform | linux-amd64 |
 | `TARGETS` | Space-separated list of targets | `linux-amd64 linux-aarch64 windows-amd64` |
-| `BUILDENV_VERSION` | Docker image version | 0.0.1 |
+| `BUILDENV_VERSION` | Docker image version | `0.0.1` |
+| `BUILDENV_IMAGE` | Docker image | `ghcr.io/actions-precompiled/buildenv` |
+| `GETTEXT_MIRROR` | Download mirror | `https://mirrors.ocf.berkeley.edu/gnu/gettext` |
 | `LOCAL_BUILD` | Skip GitHub release creation | (unset) |
 | `DRY_RUN` | Show what would be built | (unset) |
-
-## GitHub Actions Workflows
-
-### PR Build Test (`.github/workflows/pr-build-test.yml`)
-
-Runs on every pull request to validate builds:
-- Builds linux-amd64 target only
-- Uses `LOCAL_BUILD=1` to skip release creation
-- Uploads artifacts for inspection
-
-### Build Releases (`.github/workflows/build-releases.yml`)
-
-Scheduled weekly (Saturdays 2:00 AM UTC) or manually triggered:
-- Builds all missing versions for all targets
-- Creates GitHub releases
-- Uploads tarballs
-
-Trigger manually:
-```bash
-gh workflow run build-releases.yml
-```
-
-## CMake Configuration
-
-### Build Options
-
-| CMake Variable | Description | Default |
-|----------------|-------------|---------|
-| `GETTEXT_VERSION` | Version to build | 0.22.5 |
-| `BUILD_TARGET` | Target platform | linux-amd64 |
-| `BUILDENV_IMAGE` | Docker image | `ghcr.io/actions-precompiled/buildenv` |
-| `BUILDENV_VERSION` | Docker tag | 0.0.1 |
-| `GETTEXT_MIRROR` | Download mirror | Berkeley OCF |
-
-### Example: Custom Build Environment
-
-```bash
-cmake -B build \
-  -DGETTEXT_VERSION=0.22.5 \
-  -DBUILD_TARGET=linux-aarch64 \
-  -DBUILDENV_VERSION=0.0.2
-```
 
 ## Helper Scripts
 
@@ -178,6 +93,8 @@ Lists all available gettext versions from GNU mirror:
 ./scripts/list_versions.py
 ```
 
+Uses `uv` with inline script metadata (PEP 723) - dependencies auto-managed.
+
 ### `scripts/verify_gpg.py`
 
 Downloads and verifies tarball GPG signature:
@@ -186,10 +103,15 @@ Downloads and verifies tarball GPG signature:
 ./scripts/verify_gpg.py 0.22.5 --output-dir downloads
 ```
 
-Verifies against Bruno Haible's GPG keys:
-- `B6301D9E1BBEAC08`
-- `F5BE8B267C6A406D`
-- `4F494A942E4616C2`
+**Features:**
+- Auto-imports GPG keys from multiple keyservers
+- Retries on failure (keys.openpgp.org, keyserver.ubuntu.com, pgp.mit.edu)
+- Verifies against Bruno Haible's GPG keys:
+  - `B6301D9E1BBEAC08`
+  - `F5BE8B267C6A406D`
+  - `4F494A942E4616C2`
+- `--allow-insecure`: Continue with warnings if verification fails
+- `--skip-verify`: Skip verification entirely
 
 ## Output Structure
 
@@ -203,6 +125,54 @@ target/
 ```
 
 Each tarball contains the complete gettext installation (bin, lib, include, share).
+
+## GitHub Actions Workflows
+
+### PR Build Test (`.github/workflows/pr-build-test.yml`)
+
+Runs on every pull request to validate builds:
+- Builds linux-amd64 target only (faster)
+- Uses `LOCAL_BUILD=1` to skip release creation
+- Uploads artifacts for inspection
+
+### Build Releases (`.github/workflows/build-releases.yml`)
+
+Scheduled weekly (Saturdays 2:00 AM UTC) or manually triggered:
+- Builds all missing versions for all targets
+- Creates GitHub releases automatically
+- Uploads tarballs
+
+Trigger manually:
+```bash
+gh workflow run build-releases.yml
+```
+
+## Examples
+
+### Build Single Target
+
+```bash
+TARGETS="linux-amd64" ./create_releases 0.22.5
+```
+
+### Build Multiple Specific Versions
+
+```bash
+./create_releases 0.22.5 0.22.4 0.21.1
+```
+
+### Custom Mirror
+
+```bash
+GETTEXT_MIRROR="https://ftp.gnu.org/gnu/gettext" ./create_releases 0.22.5
+```
+
+### Dry Run
+
+```bash
+DRY_RUN=1 ./create_releases
+# Shows: Versions to be built: 0.22.5, 0.22.4 ...
+```
 
 ## Troubleshooting
 
@@ -226,31 +196,29 @@ docker pull ghcr.io/actions-precompiled/buildenv:0.0.1
 echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
 ```
 
-### GPG verification fails
+### GPG verification warnings
 
-```bash
-# Import keys manually
-gpg --recv-keys B6301D9E1BBEAC08 F5BE8B267C6A406D 4F494A942E4616C2
+GPG verification tries to validate signatures but continues with warnings if it fails. This is intentional to avoid blocking builds due to keyserver reliability issues.
 
-# Or skip verification (not recommended)
-# Edit scripts/verify_gpg.py to add --skip-verify flag
-```
+To enforce strict GPG verification, modify `create_releases` to not pass `--allow-insecure` flag.
 
 ### Build fails inside container
 
 ```bash
 # Run container interactively to debug
 docker run -it --rm \
-  -v $(pwd):/src:ro \
-  -v $(pwd)/debug-out:/out \
+  -v $(pwd)/target/0.22.5:/out \
   -e GETTEXT_VERSION=0.22.5 \
   -e BUILD_TARGET=linux-amd64 \
   ghcr.io/actions-precompiled/buildenv:0.0.1 \
   bash
 
-# Inside container, run commands manually
-cd /src
-./docker-build.sh
+# Inside container:
+wget https://mirrors.ocf.berkeley.edu/gnu/gettext/gettext-0.22.5.tar.gz
+tar -xzf gettext-0.22.5.tar.gz
+cd gettext-0.22.5
+./configure --prefix=/tmp/install --disable-shared --enable-static
+make -j$(nproc)
 ```
 
 ## Development
@@ -268,28 +236,66 @@ tar -tzf target/0.22.5/0.22.5-linux-amd64.tar.gz | head
 
 ### Adding New Targets
 
-1. Update `docker-build.sh` with new case in switch statement
+1. Edit `create_releases` - add new case in `generate_build_script()`
 2. Ensure buildenv container has required toolchain
-3. Add target to `TARGETS` default in `create_releases`
-4. Test build locally
+3. Test locally with `LOCAL_BUILD=1`
 
-## Migration from Dagger
+Example for macOS ARM64:
+```bash
+darwin-arm64)
+    export CC=aarch64-apple-darwin-gcc
+    ./configure --prefix="${INSTALL_PREFIX}" \
+        --host=aarch64-apple-darwin \
+        --disable-shared --enable-static
+    ;;
+```
 
-This project was migrated from Dagger to a CMake + Docker approach for:
+## Architecture
 
-- ✅ **Pinned dependencies**: Buildenv version explicitly specified
-- ✅ **Standard tooling**: CMake instead of custom Dagger SDK
-- ✅ **Simplified CI**: No Dagger Engine required in CI
-- ✅ **Easier debugging**: Can run Docker container manually
-- ✅ **Build caching**: Docker layer caching works automatically
+### Simple & Direct
 
-Old Dagger configuration preserved in `.dagger/` for reference.
+```
+create_releases (bash)
+  └─ docker run (for each target)
+      └─ bash -c "inline build script"
+          ├─ wget tarball
+          ├─ ./configure (with --host for cross-compilation)
+          ├─ make && make install
+          └─ tar -czf output
+```
+
+**No intermediate layers:**
+- ❌ No CMake
+- ❌ No Dagger
+- ❌ No separate build script files
+- ✅ Just bash + Docker + inline scripts
+
+### Benefits
+
+1. **Simple**: Single script does everything
+2. **Transparent**: Build logic visible inline
+3. **Portable**: Works anywhere with Docker
+4. **Fast**: No CMake configure overhead
+5. **Maintainable**: One file to understand
+
+## Migration from Dagger + CMake
+
+This project was initially built with Dagger, then migrated to CMake + Docker, and finally simplified to just bash + Docker.
+
+**Evolution:**
+1. **Dagger** (complex, Python SDK, Dagger Engine dependency)
+2. **CMake + Docker** (still complex, multiple files)
+3. **Bash + Docker** (current - simple, direct, one script) ✅
+
+Old configurations preserved for reference:
+- `.dagger/` - Original Dagger implementation (removed)
+- Previous commits show CMake-based approach
+
+## Related Projects
+
+- [actions-precompiled/buildenv](https://github.com/actions-precompiled/buildenv) - Docker build environment with cross-compilation toolchains
+- [actions-precompiled/tesseract-bin](https://github.com/actions-precompiled/tesseract-bin) - Similar approach for Tesseract OCR
 
 ## License
 
 This project follows the same license as GNU gettext (GPL-3.0).
-
-## Related Projects
-
-- [actions-precompiled/buildenv](https://github.com/actions-precompiled/buildenv) - Docker build environment
-- [actions-precompiled/tesseract-bin](https://github.com/actions-precompiled/tesseract-bin) - Similar project for Tesseract OCR
