@@ -102,11 +102,11 @@ endif()
 # Build and install
 add_custom_target(build ALL
     COMMAND ${CMAKE_COMMAND} -E echo "Configuring for ${BUILD_TARGET_NAME}..."
-    COMMAND cd ${BUILD_DIR} && ./configure ${CONFIGURE_ARGS}
+    COMMAND bash -c "cd ${BUILD_DIR} && ./configure ${CONFIGURE_ARGS}"
     COMMAND ${CMAKE_COMMAND} -E echo "Building..."
-    COMMAND cd ${BUILD_DIR} && make -j$$(nproc)
+    COMMAND bash -c "cd ${BUILD_DIR} && make -j$$(nproc)"
     COMMAND ${CMAKE_COMMAND} -E echo "Installing..."
-    COMMAND cd ${BUILD_DIR} && make install
+    COMMAND bash -c "cd ${BUILD_DIR} && make install"
     DEPENDS download
     COMMENT "Building gettext ${VERSION} for ${BUILD_TARGET_NAME}"
 )
@@ -115,11 +115,11 @@ add_custom_target(build ALL
 add_custom_target(package ALL
     COMMAND ${CMAKE_COMMAND} -E echo "Creating tarball..."
     COMMAND ${CMAKE_COMMAND} -E make_directory ${OUTPUT_DIR}
-    COMMAND cd ${INSTALL_DIR} && tar -czf ${OUTPUT_DIR}/${VERSION}-${BUILD_TARGET_NAME}.tar.gz .
+    COMMAND bash -c "cd ${INSTALL_DIR} && tar -czf ${OUTPUT_DIR}/${VERSION}-${BUILD_TARGET_NAME}.tar.gz ."
     COMMAND ${CMAKE_COMMAND} -E echo "Creating source tarball..."
-    COMMAND mkdir -p /tmp/${VERSION}-src
-    COMMAND tar -xzf /tmp/gettext.tar.gz -C /tmp/${VERSION}-src --strip-components=1
-    COMMAND cd /tmp && tar -czf ${OUTPUT_DIR}/${VERSION}-src.tar.gz ${VERSION}-src
+    COMMAND bash -c "mkdir -p /tmp/${VERSION}-src"
+    COMMAND bash -c "tar -xzf /tmp/gettext.tar.gz -C /tmp/${VERSION}-src --strip-components=1"
+    COMMAND bash -c "cd /tmp && tar -czf ${OUTPUT_DIR}/${VERSION}-src.tar.gz ${VERSION}-src"
     DEPENDS build
     COMMENT "Creating output tarballs"
 )
