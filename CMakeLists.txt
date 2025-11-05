@@ -96,17 +96,17 @@ ExternalProject_Add(gettext
 
 # Create output tarballs
 ExternalProject_Add_Step(gettext package
-    COMMAND ${CMAKE_COMMAND} -E echo "Creating tarballs..."
+    COMMAND ${CMAKE_COMMAND} -E echo "Creating binary tarball..."
     COMMAND ${CMAKE_COMMAND} -E make_directory ${OUTPUT_DIR}
-    COMMAND ${CMAKE_COMMAND} -E tar czf ${OUTPUT_DIR}/${VERSION}-${BUILD_TARGET_NAME}.tar.gz .
-    WORKING_DIRECTORY ${INSTALL_DIR}
+    COMMAND ${CMAKE_COMMAND} -E chdir ${INSTALL_DIR}
+        ${CMAKE_COMMAND} -E tar czf ${OUTPUT_DIR}/${VERSION}-${BUILD_TARGET_NAME}.tar.gz .
 
     COMMAND ${CMAKE_COMMAND} -E echo "Creating source tarball..."
     COMMAND ${CMAKE_COMMAND} -E make_directory /tmp/${VERSION}-src
-    COMMAND ${CMAKE_COMMAND} -E tar xzf <DOWNLOADED_FILE> --strip-components=1
-    WORKING_DIRECTORY /tmp/${VERSION}-src
-    COMMAND ${CMAKE_COMMAND} -E tar czf ${OUTPUT_DIR}/${VERSION}-src.tar.gz ${VERSION}-src
-    WORKING_DIRECTORY /tmp
+    COMMAND ${CMAKE_COMMAND} -E chdir /tmp/${VERSION}-src
+        ${CMAKE_COMMAND} -E tar xzf ${TARBALL_PATH} --strip-components=1
+    COMMAND ${CMAKE_COMMAND} -E chdir /tmp
+        ${CMAKE_COMMAND} -E tar czf ${OUTPUT_DIR}/${VERSION}-src.tar.gz ${VERSION}-src
 
     DEPENDEES install
     COMMENT "Creating output tarballs"
