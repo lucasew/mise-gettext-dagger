@@ -37,6 +37,21 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
+      - name: Import GPG keys
+        run: |
+          # Import Bruno Haible's GPG keys with retry
+          for keyserver in hkps://keys.openpgp.org hkps://keyserver.ubuntu.com hkps://pgp.mit.edu; do
+            echo "Trying keyserver: $keyserver"
+            if gpg --keyserver "$keyserver" --recv-keys \
+              B6301D9E1BBEAC08 \
+              F5BE8B267C6A406D \
+              4F494A942E4616C2; then
+              echo "✓ Keys imported successfully"
+              break
+            fi
+            echo "Failed with $keyserver, trying next..."
+          done
+
       - name: Pull buildenv container
         run: docker pull ghcr.io/actions-precompiled/buildenv:0.0.1
 

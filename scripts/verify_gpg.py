@@ -43,23 +43,39 @@ def download_file(url: str, output_path: Path) -> bool:
 
 
 def import_gpg_keys(keys: list) -> bool:
-    """Import GPG keys from keyserver"""
-    try:
-        print(f"Importing GPG keys: {', '.join(keys)}")
-        result = subprocess.run(
-            ["gpg", "--recv-keys", *keys],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        print("GPG keys imported successfully")
-        return True
-    except subprocess.CalledProcessError as e:
-        print(f"ERROR: Failed to import GPG keys: {e.stderr}", file=sys.stderr)
-        return False
-    except FileNotFoundError:
-        print("ERROR: gpg command not found. Please install GnuPG.", file=sys.stderr)
-        return False
+    """Import GPG keys from keyserver with retry logic"""
+    keyservers = [
+        "hkps://keys.openpgp.org",
+        "hkps://keyserver.ubuntu.com",
+        "hkps://pgp.mit.edu",
+    ]
+
+    print(f"Importing GPG keys: {', '.join(keys)}")
+
+    for keyserver in keyservers:
+        try:
+            print(f"  Trying keyserver: {keyserver}")
+            result = subprocess.run(
+                ["gpg", "--keyserver", keyserver, "--recv-keys", *keys],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=True
+            )
+            print("✓ GPG keys imported successfully")
+            return True
+        except subprocess.TimeoutExpired:
+            print(f"  ✗ Timeout from {keyserver}")
+            continue
+        except subprocess.CalledProcessError as e:
+            print(f"  ✗ Failed with {keyserver}: {e.stderr.strip()}")
+            continue
+        except FileNotFoundError:
+            print("ERROR: gpg command not found. Please install GnuPG.", file=sys.stderr)
+            return False
+
+    print("ERROR: Failed to import GPG keys from all keyservers", file=sys.stderr)
+    return False
 
 
 def verify_signature(tarball: Path, signature: Path) -> bool:
