@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Configuration
-BUILDENV_VERSION="0.0.1"
+BUILDENV_VERSION="0.0.3"
 BUILDENV_IMAGE="ghcr.io/actions-precompiled/buildenv"
 TARGETS="${TARGETS:-linux-amd64 linux-aarch64 windows-amd64}"
 MIRROR="${GETTEXT_MIRROR:-https://mirrors.ocf.berkeley.edu/gnu/gettext}"
