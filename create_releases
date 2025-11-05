@@ -81,20 +81,20 @@ if [ "${#versions_to_build[@]}" -eq 0 ]; then
 
     # Get list of available versions
     echo "Fetching available upstream versions..."
-    ./scripts/list_versions.py > upstream_versions.txt
+    ./scripts/list_versions.py | sort -V > upstream_versions.txt
     UPSTREAM_COUNT=$(wc -l < upstream_versions.txt)
     echo "  Found ${UPSTREAM_COUNT} upstream versions"
 
     # Get list of already released versions
     echo "Fetching already released versions..."
-    gh release list --json tagName | jq '.[].tagName' -r > released_versions.txt
+    gh release list --json tagName | jq '.[].tagName' -r | sort -V > released_versions.txt
     RELEASED_COUNT=$(wc -l < released_versions.txt)
     echo "  Found ${RELEASED_COUNT} released versions"
 
-    # Find versions that need to be built
+    # Find versions that need to be built (versions in upstream but not in released)
     echo "Comparing versions..."
     # shellcheck disable=SC2207
-    versions_to_build=($(diff -w upstream_versions.txt released_versions.txt | grep -e '^< ' | sed 's;^< ;;'))
+    versions_to_build=($(comm -23 upstream_versions.txt released_versions.txt))
 
     # Clean up temp files only if not in DRY_RUN mode
     if [[ ! -v DRY_RUN ]]; then
