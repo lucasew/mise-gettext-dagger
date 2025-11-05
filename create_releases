@@ -77,25 +77,51 @@ function build_release {
 # Auto-detect versions to build if none specified
 if [ "${#versions_to_build[@]}" -eq 0 ]; then
     echo "Auto-detecting versions to build..."
+    echo ""
 
     # Get list of available versions
+    echo "Fetching available upstream versions..."
     ./scripts/list_versions.py > upstream_versions.txt
+    UPSTREAM_COUNT=$(wc -l < upstream_versions.txt)
+    echo "  Found ${UPSTREAM_COUNT} upstream versions"
 
     # Get list of already released versions
+    echo "Fetching already released versions..."
     gh release list --json tagName | jq '.[].tagName' -r > released_versions.txt
+    RELEASED_COUNT=$(wc -l < released_versions.txt)
+    echo "  Found ${RELEASED_COUNT} released versions"
 
     # Find versions that need to be built
+    echo "Comparing versions..."
     # shellcheck disable=SC2207
     versions_to_build=($(diff -w upstream_versions.txt released_versions.txt | grep -e '^< ' | sed 's;^< ;;'))
 
-    # Clean up temp files
-    rm -f upstream_versions.txt released_versions.txt
+    # Clean up temp files only if not in DRY_RUN mode
+    if [[ ! -v DRY_RUN ]]; then
+        rm -f upstream_versions.txt released_versions.txt
+    else
+        echo ""
+        echo "Temporary comparison files preserved for inspection:"
+        echo "  - upstream_versions.txt (${UPSTREAM_COUNT} versions)"
+        echo "  - released_versions.txt (${RELEASED_COUNT} versions)"
+    fi
 fi
 
 # Show what will be built
 echo ""
 echo "========================================"
-echo "Versions to be built: "
+if [ "${#versions_to_build[@]}" -eq 0 ]; then
+    echo "No versions to build!"
+    echo "========================================"
+    echo ""
+    echo "All upstream versions have already been released."
+    if [[ -v DRY_RUN ]]; then
+        echo "Check upstream_versions.txt and released_versions.txt for details."
+    fi
+    exit 0
+fi
+
+echo "Versions to be built: ${#versions_to_build[@]}"
 echo "========================================"
 for version in "${versions_to_build[@]}"; do
     printf "  - %s (targets: %s)\n" "$version" "${TARGETS}"
@@ -104,6 +130,7 @@ echo ""
 
 if [[ -v DRY_RUN ]]; then
     echo "DRY_RUN mode - exiting without building"
+    echo "Run without DRY_RUN=1 to perform the actual build."
     exit 0
 fi
 
