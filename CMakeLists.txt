@@ -103,8 +103,7 @@ ExternalProject_Add_Step(gettext package
 
     COMMAND ${CMAKE_COMMAND} -E echo "Creating source tarball..."
     COMMAND ${CMAKE_COMMAND} -E make_directory /tmp/${VERSION}-src
-    COMMAND ${CMAKE_COMMAND} -E chdir /tmp/${VERSION}-src
-        ${CMAKE_COMMAND} -E tar xzf ${TARBALL_PATH} --strip-components=1
+    COMMAND tar -xzf ${TARBALL_PATH} -C /tmp/${VERSION}-src --strip-components=1
     COMMAND ${CMAKE_COMMAND} -E chdir /tmp
         ${CMAKE_COMMAND} -E tar czf ${OUTPUT_DIR}/${VERSION}-src.tar.gz ${VERSION}-src
 
