@@ -26,6 +26,7 @@ message(STATUS "Building gettext ${VERSION} for ${BUILD_TARGET_NAME}")
 # Paths
 set(INSTALL_DIR "/tmp/install")
 set(OUTPUT_DIR "/out")
+set(LIBICONV_DIR "/tmp/libiconv")
 
 # Read mirror list from file and prepare URLs
 file(STRINGS "${CMAKE_SOURCE_DIR}/mirrors.txt" MIRROR_LIST)
@@ -48,7 +49,36 @@ endforeach()
 # Configure based on target
 if(BUILD_TARGET_NAME STREQUAL "linux-amd64")
     set(CONFIGURE_COMMAND <SOURCE_DIR>/configure --prefix=${INSTALL_DIR} --disable-shared --enable-static)
+    set(GETTEXT_DEPENDS "")
 elseif(BUILD_TARGET_NAME STREQUAL "windows-amd64")
+    # Build libiconv first for Windows
+    ExternalProject_Add(libiconv
+        URL https://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.18.tar.gz
+        URL_HASH SHA256=2d94c163aaa76f7a40c5890b38e3fc1c2c5c6c2f40ebf6d30e28f1fda7e0a24a
+        DOWNLOAD_NO_PROGRESS FALSE
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+        TIMEOUT 30
+
+        CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env
+            CC=x86_64-w64-mingw32-gcc
+            CXX=x86_64-w64-mingw32-g++
+            <SOURCE_DIR>/configure
+            --prefix=${LIBICONV_DIR}
+            --host=x86_64-w64-mingw32
+            --build=x86_64-linux-gnu
+            --disable-shared
+            --enable-static
+            --disable-nls
+
+        BUILD_COMMAND make -j
+        INSTALL_COMMAND make install
+
+        BUILD_IN_SOURCE 0
+        USES_TERMINAL_CONFIGURE 1
+        USES_TERMINAL_BUILD 1
+        USES_TERMINAL_INSTALL 1
+    )
+
     set(CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env
         CC=x86_64-w64-mingw32-gcc
         CXX=x86_64-w64-mingw32-g++
@@ -58,6 +88,7 @@ elseif(BUILD_TARGET_NAME STREQUAL "windows-amd64")
         --host=x86_64-w64-mingw32
         --target=x86_64-w64-mingw32
         --build=x86_64-linux-gnu
+        --with-libiconv-prefix=${LIBICONV_DIR}
         --disable-shared
         --enable-static
         --disable-relocatable
@@ -65,12 +96,14 @@ elseif(BUILD_TARGET_NAME STREQUAL "windows-amd64")
         --disable-libasprintf
         --disable-c++
     )
+    set(GETTEXT_DEPENDS libiconv)
 else()
     message(FATAL_ERROR "Unknown BUILD_TARGET: ${BUILD_TARGET_NAME}. Supported: linux-amd64, windows-amd64")
 endif()
 
 # Build gettext using ExternalProject
 ExternalProject_Add(gettext
+    DEPENDS ${GETTEXT_DEPENDS}
     URL ${DOWNLOAD_URLS}
     DOWNLOAD_NO_PROGRESS FALSE
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
