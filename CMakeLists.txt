@@ -60,6 +60,7 @@ elseif(BUILD_TARGET_NAME STREQUAL "windows-amd64")
         --build=x86_64-linux-gnu
         --disable-shared
         --enable-static
+        --disable-relocatable
     )
 else()
     message(FATAL_ERROR "Unknown BUILD_TARGET: ${BUILD_TARGET_NAME}. Supported: linux-amd64, windows-amd64")
