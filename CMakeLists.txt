@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.20)
 project(gettext-build NONE)
 
+# Set policy for download timestamp
+if(POLICY CMP0135)
+    cmake_policy(SET CMP0135 NEW)
+endif()
+
 include(ExternalProject)
 
 # Required environment variables
@@ -74,7 +79,7 @@ ExternalProject_Add(gettext
     TIMEOUT 30
 
     CONFIGURE_COMMAND ${CONFIGURE_ENV} <SOURCE_DIR>/configure ${CONFIGURE_ARGS}
-    BUILD_COMMAND make -j$$(nproc)
+    BUILD_COMMAND make -j
     INSTALL_COMMAND make install
 
     BUILD_IN_SOURCE 0
