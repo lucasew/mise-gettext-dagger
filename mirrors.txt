@@ -1,6 +1,7 @@
 # GNU gettext mirrors
 # One URL per line, comments start with #
 # ftp.gnu.org listed last since it's often slow/unreliable
+# Trailing slash will be added automatically if missing
 
 https://mirrors.ocf.berkeley.edu/gnu/gettext
 https://mirror.dogado.de/gnu/gettext

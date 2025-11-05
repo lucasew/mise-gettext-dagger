@@ -12,23 +12,36 @@ Script to fetch available gettext versions from GNU mirror
 import re
 import sys
 from typing import List
+from pathlib import Path
 import requests
 from bs4 import BeautifulSoup
+
+
+def read_mirrors() -> List[str]:
+    """Read mirror list from mirrors.txt"""
+    mirrors_path = Path(__file__).parent.parent / "mirrors.txt"
+    if not mirrors_path.exists():
+        print("ERROR: mirrors.txt not found", file=sys.stderr)
+        sys.exit(1)
+
+    mirrors = []
+    with open(mirrors_path) as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith('#'):
+                # Ensure trailing slash for consistency
+                if not line.endswith('/'):
+                    line += '/'
+                mirrors.append(line)
+    return mirrors
 
 
 def get_versions() -> List[str]:
     """Fetch all available gettext versions from GNU mirror with fallback"""
     regex = r"gettext-(?P<version>.*?)\.tar\.gz(?P<sig>\.sig)?"
 
-    # List of mirrors to try (ftp.gnu.org last since it's often slow)
-    mirrors = [
-        "https://mirrors.ocf.berkeley.edu/gnu/gettext/",
-        "https://mirror.dogado.de/gnu/gettext/",
-        "https://mirror.checkdomain.de/gnu/gettext/",
-        "https://ftp.cc.uoc.gr/mirrors/gnu/gettext/",
-        "https://ftpmirror.gnu.org/gettext/",
-        "https://ftp.gnu.org/gnu/gettext/",
-    ]
+    # Read mirrors from config file
+    mirrors = read_mirrors()
 
     last_error = None
     for url in mirrors:

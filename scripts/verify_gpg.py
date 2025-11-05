@@ -15,23 +15,20 @@ from pathlib import Path
 import requests
 
 
-# Valid GPG keys for Bruno Haible (gettext maintainer)
-VALID_KEYS = [
-    "B6301D9E1BBEAC08",
-    "F5BE8B267C6A406D",
-    "4F494A942E4616C2"
-]
+def read_config_file(filename: str) -> list:
+    """Read configuration file and return non-empty, non-comment lines"""
+    config_path = Path(__file__).parent.parent / filename
+    if not config_path.exists():
+        print(f"ERROR: Configuration file {filename} not found", file=sys.stderr)
+        sys.exit(1)
 
-# List of GNU mirrors to try (ftp.gnu.org last since it's often slow)
-# GPG signature validation means we can safely use any mirror
-MIRRORS = [
-    "https://mirrors.ocf.berkeley.edu/gnu/gettext",
-    "https://mirror.dogado.de/gnu/gettext",
-    "https://mirror.checkdomain.de/gnu/gettext",
-    "https://ftp.cc.uoc.gr/mirrors/gnu/gettext",
-    "https://ftpmirror.gnu.org/gettext",
-    "https://ftp.gnu.org/gnu/gettext",
-]
+    lines = []
+    with open(config_path) as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith('#'):
+                lines.append(line)
+    return lines
 
 
 def download_file_with_retry(filename: str, output_path: Path, mirrors: list) -> bool:
@@ -144,11 +141,15 @@ def main():
 
     args = parser.parse_args()
 
+    # Read GPG keys and mirrors from config files
+    gpg_keys = read_config_file("gpg-keys.txt")
+    mirrors = read_config_file("mirrors.txt")
+
     # Build mirror list (custom mirror first if provided, then defaults)
-    mirrors = []
+    mirror_urls = []
     if args.mirror:
-        mirrors.append(args.mirror)
-    mirrors.extend(MIRRORS)
+        mirror_urls.append(args.mirror)
+    mirror_urls.extend(mirrors)
 
     # Output paths
     tarball_path = args.output_dir / f"gettext-{args.version}.tar.gz"
@@ -156,7 +157,7 @@ def main():
 
     # Download tarball with retry
     tarball_filename = f"gettext-{args.version}.tar.gz"
-    if not download_file_with_retry(tarball_filename, tarball_path, mirrors):
+    if not download_file_with_retry(tarball_filename, tarball_path, mirror_urls):
         return 1
 
     if args.skip_verify:
@@ -167,7 +168,7 @@ def main():
 
     # Download signature with retry
     sig_filename = f"gettext-{args.version}.tar.gz.sig"
-    if not download_file_with_retry(sig_filename, sig_path, mirrors):
+    if not download_file_with_retry(sig_filename, sig_path, mirror_urls):
         if args.allow_insecure:
             print("=" * 60)
             print("WARNING: Could not download signature, continuing anyway")
@@ -176,7 +177,7 @@ def main():
         return 1
 
     # Import GPG keys
-    if not import_gpg_keys(VALID_KEYS):
+    if not import_gpg_keys(gpg_keys):
         if args.allow_insecure:
             print("=" * 60)
             print("WARNING: Could not import GPG keys, continuing anyway")
