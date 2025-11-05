@@ -58,7 +58,7 @@ elseif(BUILD_TARGET_NAME STREQUAL "windows-amd64")
         --disable-shared
         --enable-static
     )
-    set(CONFIGURE_ENV CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++)
+    set(CONFIGURE_ENV CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++ CFLAGS=-Dlocale_t=_locale_t)
 else()
     message(FATAL_ERROR "Unknown BUILD_TARGET: ${BUILD_TARGET_NAME}. Supported: linux-amd64, windows-amd64")
 endif()
