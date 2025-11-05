@@ -22,14 +22,15 @@ VALID_KEYS = [
     "4F494A942E4616C2"
 ]
 
-# List of GNU mirrors to try
+# List of GNU mirrors to try (ftp.gnu.org last since it's often slow)
+# GPG signature validation means we can safely use any mirror
 MIRRORS = [
-    "https://ftp.gnu.org/gnu/gettext",
-    "https://ftpmirror.gnu.org/gettext",
     "https://mirrors.ocf.berkeley.edu/gnu/gettext",
     "https://mirror.dogado.de/gnu/gettext",
     "https://mirror.checkdomain.de/gnu/gettext",
     "https://ftp.cc.uoc.gr/mirrors/gnu/gettext",
+    "https://ftpmirror.gnu.org/gettext",
+    "https://ftp.gnu.org/gnu/gettext",
 ]
 
 

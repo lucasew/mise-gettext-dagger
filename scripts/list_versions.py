@@ -20,14 +20,14 @@ def get_versions() -> List[str]:
     """Fetch all available gettext versions from GNU mirror with fallback"""
     regex = r"gettext-(?P<version>.*?)\.tar\.gz(?P<sig>\.sig)?"
 
-    # List of mirrors to try
+    # List of mirrors to try (ftp.gnu.org last since it's often slow)
     mirrors = [
-        "https://ftp.gnu.org/gnu/gettext/",
-        "https://ftpmirror.gnu.org/gettext/",
         "https://mirrors.ocf.berkeley.edu/gnu/gettext/",
         "https://mirror.dogado.de/gnu/gettext/",
         "https://mirror.checkdomain.de/gnu/gettext/",
         "https://ftp.cc.uoc.gr/mirrors/gnu/gettext/",
+        "https://ftpmirror.gnu.org/gettext/",
+        "https://ftp.gnu.org/gnu/gettext/",
     ]
 
     last_error = None
