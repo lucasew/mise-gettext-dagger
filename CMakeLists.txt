@@ -95,7 +95,7 @@ ExternalProject_Add(gettext
 )
 
 # Staging directory
-set(STAGING_DIR "${CMAKE_BINARY_DIR}/staging/${VERSION}-${BUILD_TARGET_NAME}")
+set(STAGING_DIR "${CMAKE_BINARY_DIR}/staging/gettext-${VERSION}-${BUILD_TARGET_NAME}")
 
 # Stage files from install directory
 add_custom_target(stage-all
@@ -109,9 +109,9 @@ add_custom_target(stage-all
 # Create binary package (zip only)
 add_custom_target(package-zip ALL
     DEPENDS stage-all
-    COMMAND ${CMAKE_COMMAND} -E echo "Creating ${VERSION}-${BUILD_TARGET_NAME}.zip..."
+    COMMAND ${CMAKE_COMMAND} -E echo "Creating gettext-${VERSION}-${BUILD_TARGET_NAME}.zip..."
     COMMAND ${CMAKE_COMMAND} -E tar cfv
-            ${OUTPUT_DIR}/${VERSION}-${BUILD_TARGET_NAME}.zip
+            ${OUTPUT_DIR}/gettext-${VERSION}-${BUILD_TARGET_NAME}.zip
             --format=zip
             ${STAGING_DIR}
     WORKING_DIRECTORY ${STAGING_DIR}/..

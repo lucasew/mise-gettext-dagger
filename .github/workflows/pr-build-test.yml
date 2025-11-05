@@ -46,7 +46,7 @@ jobs:
           ls -lh target/0.22.5/
 
           # Verify zip was created
-          if [ ! -f target/0.22.5/0.22.5-linux-amd64.zip ]; then
+          if [ ! -f target/0.22.5/gettext-0.22.5-linux-amd64.zip ]; then
             echo "ERROR: Expected zip file not found"
             exit 1
           fi
