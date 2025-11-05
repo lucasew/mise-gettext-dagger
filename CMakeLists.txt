@@ -104,9 +104,12 @@ else()
 endif()
 
 # Build and install
+# Convert CONFIGURE_ARGS list to string for bash
+list(JOIN CONFIGURE_ARGS " " CONFIGURE_ARGS_STR)
+
 add_custom_target(build ALL
     COMMAND ${CMAKE_COMMAND} -E echo "Configuring for ${BUILD_TARGET_NAME}..."
-    COMMAND bash -c "cd ${BUILD_DIR} && ./configure ${CONFIGURE_ARGS}"
+    COMMAND bash -c "cd ${BUILD_DIR} && ./configure ${CONFIGURE_ARGS_STR}"
     COMMAND ${CMAKE_COMMAND} -E echo "Building..."
     COMMAND bash -c "cd ${BUILD_DIR} && make -j$$(nproc)"
     COMMAND ${CMAKE_COMMAND} -E echo "Installing..."
