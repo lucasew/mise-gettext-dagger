@@ -107,26 +107,50 @@ endif()
 # Convert CONFIGURE_ARGS list to string for bash
 list(JOIN CONFIGURE_ARGS " " CONFIGURE_ARGS_STR)
 
+# Create configure script
+set(CONFIGURE_SCRIPT "${CMAKE_BINARY_DIR}/configure.sh")
+file(WRITE ${CONFIGURE_SCRIPT} "#!/bin/bash\nset -euo pipefail\n")
+file(APPEND ${CONFIGURE_SCRIPT} "cd ${BUILD_DIR}\n")
+file(APPEND ${CONFIGURE_SCRIPT} "./configure ${CONFIGURE_ARGS_STR}\n")
+
+# Create build script
+set(BUILD_SCRIPT "${CMAKE_BINARY_DIR}/build.sh")
+file(WRITE ${BUILD_SCRIPT} "#!/bin/bash\nset -euo pipefail\n")
+file(APPEND ${BUILD_SCRIPT} "cd ${BUILD_DIR}\n")
+file(APPEND ${BUILD_SCRIPT} "make -j$(nproc)\n")
+
+# Create install script
+set(INSTALL_SCRIPT "${CMAKE_BINARY_DIR}/install.sh")
+file(WRITE ${INSTALL_SCRIPT} "#!/bin/bash\nset -euo pipefail\n")
+file(APPEND ${INSTALL_SCRIPT} "cd ${BUILD_DIR}\n")
+file(APPEND ${INSTALL_SCRIPT} "make install\n")
+
 add_custom_target(build ALL
     COMMAND ${CMAKE_COMMAND} -E echo "Configuring for ${BUILD_TARGET_NAME}..."
-    COMMAND bash -c "cd ${BUILD_DIR} && ./configure ${CONFIGURE_ARGS_STR}"
+    COMMAND bash ${CONFIGURE_SCRIPT}
     COMMAND ${CMAKE_COMMAND} -E echo "Building..."
-    COMMAND bash -c "cd ${BUILD_DIR} && make -j$$(nproc)"
+    COMMAND bash ${BUILD_SCRIPT}
     COMMAND ${CMAKE_COMMAND} -E echo "Installing..."
-    COMMAND bash -c "cd ${BUILD_DIR} && make install"
+    COMMAND bash ${INSTALL_SCRIPT}
     DEPENDS download
     COMMENT "Building gettext ${VERSION} for ${BUILD_TARGET_NAME}"
 )
 
+# Create packaging script
+set(PACKAGE_SCRIPT "${CMAKE_BINARY_DIR}/package.sh")
+file(WRITE ${PACKAGE_SCRIPT} "#!/bin/bash\nset -euo pipefail\n")
+file(APPEND ${PACKAGE_SCRIPT} "mkdir -p ${OUTPUT_DIR}\n")
+file(APPEND ${PACKAGE_SCRIPT} "cd ${INSTALL_DIR}\n")
+file(APPEND ${PACKAGE_SCRIPT} "tar -czf ${OUTPUT_DIR}/${VERSION}-${BUILD_TARGET_NAME}.tar.gz .\n")
+file(APPEND ${PACKAGE_SCRIPT} "mkdir -p /tmp/${VERSION}-src\n")
+file(APPEND ${PACKAGE_SCRIPT} "tar -xzf ${TARBALL_PATH} -C /tmp/${VERSION}-src --strip-components=1\n")
+file(APPEND ${PACKAGE_SCRIPT} "cd /tmp\n")
+file(APPEND ${PACKAGE_SCRIPT} "tar -czf ${OUTPUT_DIR}/${VERSION}-src.tar.gz ${VERSION}-src\n")
+
 # Create output tarballs
 add_custom_target(package ALL
-    COMMAND ${CMAKE_COMMAND} -E echo "Creating tarball..."
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${OUTPUT_DIR}
-    COMMAND bash -c "cd ${INSTALL_DIR} && tar -czf ${OUTPUT_DIR}/${VERSION}-${BUILD_TARGET_NAME}.tar.gz ."
-    COMMAND ${CMAKE_COMMAND} -E echo "Creating source tarball..."
-    COMMAND bash -c "mkdir -p /tmp/${VERSION}-src"
-    COMMAND bash -c "tar -xzf /tmp/gettext.tar.gz -C /tmp/${VERSION}-src --strip-components=1"
-    COMMAND bash -c "cd /tmp && tar -czf ${OUTPUT_DIR}/${VERSION}-src.tar.gz ${VERSION}-src"
+    COMMAND ${CMAKE_COMMAND} -E echo "Creating tarballs..."
+    COMMAND bash ${PACKAGE_SCRIPT}
     DEPENDS build
     COMMENT "Creating output tarballs"
 )
