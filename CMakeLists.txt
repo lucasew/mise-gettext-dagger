@@ -24,48 +24,42 @@ set(BUILD_DIR "/tmp/build")
 set(INSTALL_DIR "/tmp/install")
 set(OUTPUT_DIR "/out")
 
+# Create download script
+set(DOWNLOAD_SCRIPT "${CMAKE_BINARY_DIR}/download.sh")
+file(WRITE ${DOWNLOAD_SCRIPT} "#!/bin/bash\n")
+file(APPEND ${DOWNLOAD_SCRIPT} "set -euo pipefail\n\n")
+file(APPEND ${DOWNLOAD_SCRIPT} "# List of GNU mirrors to try (ftp.gnu.org last since it's often slow)\n")
+file(APPEND ${DOWNLOAD_SCRIPT} "MIRRORS=(\n")
+file(APPEND ${DOWNLOAD_SCRIPT} "    '${MIRROR}'\n")
+file(APPEND ${DOWNLOAD_SCRIPT} "    'https://mirrors.ocf.berkeley.edu/gnu/gettext'\n")
+file(APPEND ${DOWNLOAD_SCRIPT} "    'https://mirror.dogado.de/gnu/gettext'\n")
+file(APPEND ${DOWNLOAD_SCRIPT} "    'https://mirror.checkdomain.de/gnu/gettext'\n")
+file(APPEND ${DOWNLOAD_SCRIPT} "    'https://ftp.cc.uoc.gr/mirrors/gnu/gettext'\n")
+file(APPEND ${DOWNLOAD_SCRIPT} "    'https://ftpmirror.gnu.org/gettext'\n")
+file(APPEND ${DOWNLOAD_SCRIPT} "    'https://ftp.gnu.org/gnu/gettext'\n")
+file(APPEND ${DOWNLOAD_SCRIPT} ")\n\n")
+file(APPEND ${DOWNLOAD_SCRIPT} "FILENAME='gettext-${VERSION}.tar.gz'\n")
+file(APPEND ${DOWNLOAD_SCRIPT} "SUCCESS=0\n\n")
+file(APPEND ${DOWNLOAD_SCRIPT} "for mirror in \"\${MIRRORS[@]}\"; do\n")
+file(APPEND ${DOWNLOAD_SCRIPT} "    url=\"\${mirror}/\${FILENAME}\"\n")
+file(APPEND ${DOWNLOAD_SCRIPT} "    echo \"Trying \${url}...\"\n\n")
+file(APPEND ${DOWNLOAD_SCRIPT} "    if wget --timeout=30 --tries=3 -q -O /tmp/gettext.tar.gz \"\${url}\"; then\n")
+file(APPEND ${DOWNLOAD_SCRIPT} "        echo \"✓ Successfully downloaded from \${mirror}\"\n")
+file(APPEND ${DOWNLOAD_SCRIPT} "        SUCCESS=1\n")
+file(APPEND ${DOWNLOAD_SCRIPT} "        break\n")
+file(APPEND ${DOWNLOAD_SCRIPT} "    else\n")
+file(APPEND ${DOWNLOAD_SCRIPT} "        echo \"✗ Failed to download from \${mirror}\"\n")
+file(APPEND ${DOWNLOAD_SCRIPT} "    fi\n")
+file(APPEND ${DOWNLOAD_SCRIPT} "done\n\n")
+file(APPEND ${DOWNLOAD_SCRIPT} "if [ \${SUCCESS} -eq 0 ]; then\n")
+file(APPEND ${DOWNLOAD_SCRIPT} "    echo \"ERROR: Failed to download from all mirrors!\"\n")
+file(APPEND ${DOWNLOAD_SCRIPT} "    exit 1\n")
+file(APPEND ${DOWNLOAD_SCRIPT} "fi\n")
+
 # Download and extract with multi-mirror fallback
 add_custom_target(download ALL
     COMMAND ${CMAKE_COMMAND} -E echo "Downloading gettext-${VERSION}.tar.gz..."
-    COMMAND ${CMAKE_COMMAND} -E env
-        "MIRROR=${MIRROR}"
-        "DL_VERSION=${VERSION}"
-        bash -c [=[
-            set -euo pipefail
-
-            # List of GNU mirrors to try (ftp.gnu.org last since it's often slow)
-            MIRRORS=(
-                "${MIRROR}"
-                'https://mirrors.ocf.berkeley.edu/gnu/gettext'
-                'https://mirror.dogado.de/gnu/gettext'
-                'https://mirror.checkdomain.de/gnu/gettext'
-                'https://ftp.cc.uoc.gr/mirrors/gnu/gettext'
-                'https://ftpmirror.gnu.org/gettext'
-                'https://ftp.gnu.org/gnu/gettext'
-            )
-
-            FILENAME="gettext-${DL_VERSION}.tar.gz"
-            SUCCESS=0
-
-            for mirror in "${MIRRORS[@]}"; do
-                url="${mirror}/${FILENAME}"
-                echo "Trying ${url}..."
-
-                # Try downloading with wget (timeout 30s, 3 retries)
-                if wget --timeout=30 --tries=3 -q -O /tmp/gettext.tar.gz "${url}"; then
-                    echo "✓ Successfully downloaded from ${mirror}"
-                    SUCCESS=1
-                    break
-                else
-                    echo "✗ Failed to download from ${mirror}"
-                fi
-            done
-
-            if [ ${SUCCESS} -eq 0 ]; then
-                echo "ERROR: Failed to download from all mirrors!"
-                exit 1
-            fi
-        ]=]
+    COMMAND bash ${DOWNLOAD_SCRIPT}
     COMMAND ${CMAKE_COMMAND} -E make_directory ${BUILD_DIR}
     COMMAND tar -xzf /tmp/gettext.tar.gz -C ${BUILD_DIR} --strip-components=1
     COMMENT "Downloading and extracting gettext ${VERSION}"
