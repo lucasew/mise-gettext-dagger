@@ -118,13 +118,13 @@ add_custom_target(package-zip ALL
     COMMENT "Packing ${STAGING_DIR} into zip"
 )
 
-# Create source tarball
+# Create source tarball (copy the downloaded tarball)
+# ExternalProject downloads to <BINARY_DIR>/<name>-prefix/src/<name>-<version>.tar.gz
+set(DOWNLOADED_TARBALL "${CMAKE_BINARY_DIR}/gettext-prefix/src/gettext-${VERSION}.tar.gz")
 add_custom_target(package-src ALL
     COMMAND ${CMAKE_COMMAND} -E echo "Creating source tarball..."
-    COMMAND ${CMAKE_COMMAND} -E make_directory /tmp/${VERSION}-src
-    COMMAND tar -xzf ${TARBALL_PATH} -C /tmp/${VERSION}-src --strip-components=1
-    COMMAND ${CMAKE_COMMAND} -E chdir /tmp
-        ${CMAKE_COMMAND} -E tar czf ${OUTPUT_DIR}/${VERSION}-src.tar.gz ${VERSION}-src
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${OUTPUT_DIR}
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${DOWNLOADED_TARBALL} ${OUTPUT_DIR}/${VERSION}-src.tar.gz
     DEPENDS gettext
     COMMENT "Creating source tarball"
 )
