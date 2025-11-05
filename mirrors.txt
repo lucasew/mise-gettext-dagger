@@ -1,0 +1,10 @@
+# GNU gettext mirrors
+# One URL per line, comments start with #
+# ftp.gnu.org listed last since it's often slow/unreliable
+
+https://mirrors.ocf.berkeley.edu/gnu/gettext
+https://mirror.dogado.de/gnu/gettext
+https://mirror.checkdomain.de/gnu/gettext
+https://ftp.cc.uoc.gr/mirrors/gnu/gettext
+https://ftpmirror.gnu.org/gettext
+https://ftp.gnu.org/gnu/gettext

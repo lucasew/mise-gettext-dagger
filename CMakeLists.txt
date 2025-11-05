@@ -24,13 +24,55 @@ set(BUILD_DIR "/tmp/build")
 set(INSTALL_DIR "/tmp/install")
 set(OUTPUT_DIR "/out")
 
-# Download and extract with multi-mirror fallback
+# Read mirror list from file
+file(STRINGS "${CMAKE_SOURCE_DIR}/mirrors.txt" MIRROR_LIST)
+
+# Add custom mirror to the beginning if provided
+if(MIRROR)
+    list(INSERT MIRROR_LIST 0 "${MIRROR}")
+endif()
+
+# Try downloading from each mirror
+set(DOWNLOAD_SUCCESS FALSE)
+set(TARBALL_PATH "/tmp/gettext-${VERSION}.tar.gz")
+
+foreach(MIRROR_URL IN LISTS MIRROR_LIST)
+    # Skip empty lines and comments
+    string(STRIP "${MIRROR_URL}" MIRROR_URL)
+    if(NOT MIRROR_URL OR MIRROR_URL MATCHES "^#")
+        continue()
+    endif()
+
+    set(DOWNLOAD_URL "${MIRROR_URL}/gettext-${VERSION}.tar.gz")
+    message(STATUS "Trying ${DOWNLOAD_URL}...")
+
+    file(DOWNLOAD "${DOWNLOAD_URL}" "${TARBALL_PATH}"
+        TIMEOUT 30
+        STATUS DOWNLOAD_STATUS
+        SHOW_PROGRESS
+    )
+
+    list(GET DOWNLOAD_STATUS 0 STATUS_CODE)
+    list(GET DOWNLOAD_STATUS 1 STATUS_MESSAGE)
+
+    if(STATUS_CODE EQUAL 0)
+        message(STATUS "✓ Successfully downloaded from ${MIRROR_URL}")
+        set(DOWNLOAD_SUCCESS TRUE)
+        break()
+    else()
+        message(STATUS "✗ Failed: ${STATUS_MESSAGE}")
+    endif()
+endforeach()
+
+if(NOT DOWNLOAD_SUCCESS)
+    message(FATAL_ERROR "Failed to download gettext-${VERSION}.tar.gz from all mirrors!")
+endif()
+
+# Extract tarball
 add_custom_target(download ALL
-    COMMAND ${CMAKE_COMMAND} -E echo "Downloading gettext-${VERSION}.tar.gz..."
-    COMMAND bash /src/scripts/download.sh ${VERSION} /tmp/gettext.tar.gz ${MIRROR}
     COMMAND ${CMAKE_COMMAND} -E make_directory ${BUILD_DIR}
-    COMMAND tar -xzf /tmp/gettext.tar.gz -C ${BUILD_DIR} --strip-components=1
-    COMMENT "Downloading and extracting gettext ${VERSION}"
+    COMMAND tar -xzf ${TARBALL_PATH} -C ${BUILD_DIR} --strip-components=1
+    COMMENT "Extracting gettext ${VERSION}"
 )
 
 # Configure based on target
