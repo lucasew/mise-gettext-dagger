@@ -22,24 +22,44 @@ VALID_KEYS = [
     "4F494A942E4616C2"
 ]
 
+# List of GNU mirrors to try
+MIRRORS = [
+    "https://ftp.gnu.org/gnu/gettext",
+    "https://ftpmirror.gnu.org/gettext",
+    "https://mirrors.ocf.berkeley.edu/gnu/gettext",
+    "https://mirror.dogado.de/gnu/gettext",
+    "https://mirror.checkdomain.de/gnu/gettext",
+    "https://ftp.cc.uoc.gr/mirrors/gnu/gettext",
+]
 
-def download_file(url: str, output_path: Path) -> bool:
-    """Download a file from URL to output_path"""
-    try:
-        print(f"Downloading {url}...")
-        res = requests.get(url, timeout=60, stream=True)
-        res.raise_for_status()
 
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, 'wb') as f:
-            for chunk in res.iter_content(chunk_size=8192):
-                f.write(chunk)
+def download_file_with_retry(filename: str, output_path: Path, mirrors: list) -> bool:
+    """Download a file with retry across multiple mirrors"""
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        print(f"Downloaded to {output_path}")
-        return True
-    except requests.RequestException as e:
-        print(f"ERROR: Failed to download {url}: {e}", file=sys.stderr)
-        return False
+    last_error = None
+    for mirror in mirrors:
+        url = f"{mirror}/{filename}"
+        try:
+            print(f"Trying {url}...")
+            res = requests.get(url, timeout=60, stream=True)
+            res.raise_for_status()
+
+            with open(output_path, 'wb') as f:
+                for chunk in res.iter_content(chunk_size=8192):
+                    f.write(chunk)
+
+            print(f"✓ Downloaded from {mirror}")
+            return True
+        except requests.RequestException as e:
+            print(f"✗ Failed to download from {mirror}: {e}", file=sys.stderr)
+            last_error = e
+            continue
+
+    print(f"ERROR: Failed to download {filename} from all mirrors!", file=sys.stderr)
+    if last_error:
+        print(f"Last error: {last_error}", file=sys.stderr)
+    return False
 
 
 def import_gpg_keys(keys: list) -> bool:
@@ -102,8 +122,7 @@ def main():
     parser.add_argument("version", help="Gettext version to download")
     parser.add_argument(
         "--mirror",
-        default="https://mirrors.ocf.berkeley.edu/gnu/gettext",
-        help="Mirror URL (default: Berkeley OCF)"
+        help="Additional mirror URL to try first"
     )
     parser.add_argument(
         "--output-dir",
@@ -124,16 +143,19 @@ def main():
 
     args = parser.parse_args()
 
-    # Construct URLs
-    tarball_url = f"{args.mirror}/gettext-{args.version}.tar.gz"
-    sig_url = f"{args.mirror}/gettext-{args.version}.tar.gz.sig"
+    # Build mirror list (custom mirror first if provided, then defaults)
+    mirrors = []
+    if args.mirror:
+        mirrors.append(args.mirror)
+    mirrors.extend(MIRRORS)
 
     # Output paths
     tarball_path = args.output_dir / f"gettext-{args.version}.tar.gz"
     sig_path = args.output_dir / f"gettext-{args.version}.tar.gz.sig"
 
-    # Download tarball
-    if not download_file(tarball_url, tarball_path):
+    # Download tarball with retry
+    tarball_filename = f"gettext-{args.version}.tar.gz"
+    if not download_file_with_retry(tarball_filename, tarball_path, mirrors):
         return 1
 
     if args.skip_verify:
@@ -142,8 +164,9 @@ def main():
         print("=" * 60)
         return 0
 
-    # Download signature
-    if not download_file(sig_url, sig_path):
+    # Download signature with retry
+    sig_filename = f"gettext-{args.version}.tar.gz.sig"
+    if not download_file_with_retry(sig_filename, sig_path, mirrors):
         if args.allow_insecure:
             print("=" * 60)
             print("WARNING: Could not download signature, continuing anyway")

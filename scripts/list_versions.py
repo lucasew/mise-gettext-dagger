@@ -17,34 +17,58 @@ from bs4 import BeautifulSoup
 
 
 def get_versions() -> List[str]:
-    """Fetch all available gettext versions from GNU mirror"""
+    """Fetch all available gettext versions from GNU mirror with fallback"""
     regex = r"gettext-(?P<version>.*?)\.tar\.gz(?P<sig>\.sig)?"
-    url = "https://ftp.gnu.org/gnu/gettext/"
 
-    try:
-        res = requests.get(url, timeout=30)
-        res.raise_for_status()
-    except requests.RequestException as e:
-        print(f"ERROR: Failed to fetch versions from {url}: {e}", file=sys.stderr)
-        sys.exit(1)
+    # List of mirrors to try
+    mirrors = [
+        "https://ftp.gnu.org/gnu/gettext/",
+        "https://ftpmirror.gnu.org/gettext/",
+        "https://mirrors.ocf.berkeley.edu/gnu/gettext/",
+        "https://mirror.dogado.de/gnu/gettext/",
+        "https://mirror.checkdomain.de/gnu/gettext/",
+        "https://ftp.cc.uoc.gr/mirrors/gnu/gettext/",
+    ]
 
-    tree = BeautifulSoup(res.text, 'html.parser')
-    versions = set()
+    last_error = None
+    for url in mirrors:
+        try:
+            print(f"Trying {url}...", file=sys.stderr)
+            res = requests.get(url, timeout=30)
+            res.raise_for_status()
+            print(f"✓ Successfully fetched from {url}", file=sys.stderr)
 
-    table = tree.find("table")
-    if not table:
-        print("ERROR: Could not find version table", file=sys.stderr)
-        sys.exit(1)
+            tree = BeautifulSoup(res.text, 'html.parser')
+            versions = set()
 
-    for item in table.find_all('a'):
-        name = item.text
-        match = re.match(regex, name)
-        if match:
-            version = match.group('version')
-            if not match.group('sig'):  # Only add if it's the tarball, not signature
-                versions.add(version)
+            table = tree.find("table")
+            if not table:
+                print(f"WARNING: Could not find version table at {url}", file=sys.stderr)
+                continue
 
-    return sorted(versions)
+            for item in table.find_all('a'):
+                name = item.text
+                match = re.match(regex, name)
+                if match:
+                    version = match.group('version')
+                    if not match.group('sig'):  # Only add if it's the tarball, not signature
+                        versions.add(version)
+
+            if versions:
+                return sorted(versions)
+            else:
+                print(f"WARNING: No versions found at {url}", file=sys.stderr)
+                continue
+
+        except requests.RequestException as e:
+            print(f"✗ Failed to fetch from {url}: {e}", file=sys.stderr)
+            last_error = e
+            continue
+
+    print(f"ERROR: Failed to fetch versions from all mirrors!", file=sys.stderr)
+    if last_error:
+        print(f"Last error: {last_error}", file=sys.stderr)
+    sys.exit(1)
 
 
 def main():
