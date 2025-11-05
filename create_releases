@@ -21,7 +21,9 @@ function build_target {
 
     # Run build in Docker container
     # The buildenv container automatically runs CMake with the correct toolchain based on BUILD_TARGET
+    # Run as current user to avoid permission issues with mounted volumes
     docker run --rm \
+        --user "$(id -u):$(id -g)" \
         -v "$(pwd):/src:ro" \
         -v "${OUTPUT_DIR}:/out" \
         -e GETTEXT_VERSION="${VERSION}" \
