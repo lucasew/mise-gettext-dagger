@@ -28,7 +28,7 @@ function build_target {
         -e GETTEXT_MIRROR="${MIRROR}" \
         -w /src \
         "${BUILDENV_IMAGE}:${BUILDENV_VERSION}" \
-        bash -c "cmake -S . -B /tmp/cmake-build && cmake --build /tmp/cmake-build"
+        sh -c 'cmake -S . -B /tmp/cmake-build && cmake --build /tmp/cmake-build'
 }
 
 function build_release {
