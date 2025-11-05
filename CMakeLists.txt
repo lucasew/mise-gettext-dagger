@@ -115,7 +115,12 @@ add_custom_target(package-zip ALL
             --format=zip
             ${STAGING_DIR}
     WORKING_DIRECTORY ${STAGING_DIR}/..
-    COMMENT "Packing ${STAGING_DIR} into zip"
+    COMMAND ${CMAKE_COMMAND} -E echo "Creating ${VERSION}-${BUILD_TARGET_NAME}.tar.gz..."
+    COMMAND ${CMAKE_COMMAND} -E tar czf
+            ${OUTPUT_DIR}/${VERSION}-${BUILD_TARGET_NAME}.tar.gz
+            ${STAGING_DIR}
+    WORKING_DIRECTORY ${STAGING_DIR}/..
+    COMMENT "Packing ${STAGING_DIR} into zip and tar.gz"
 )
 
 # Create source tarball (copy the downloaded tarball)
