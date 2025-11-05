@@ -31,8 +31,10 @@ for mirror in "${MIRRORS[@]}"; do
     url="${mirror}/${FILENAME}"
     echo "Trying ${url}..."
 
-    # Try downloading with wget (timeout 30s, 3 retries)
-    if wget --timeout=30 --tries=3 -q -O "${OUTPUT_FILE}" "${url}"; then
+    # Try downloading with curl (timeout 30s, 3 retries, 2s delay between retries)
+    if curl --fail --location --silent --show-error \
+            --max-time 30 --retry 3 --retry-delay 2 \
+            --output "${OUTPUT_FILE}" "${url}"; then
         echo "✓ Successfully downloaded from ${mirror}"
         SUCCESS=1
         break
