@@ -11,13 +11,13 @@ if(NOT DEFINED ENV{BUILD_TARGET})
 endif()
 
 set(VERSION $ENV{GETTEXT_VERSION})
-set(TARGET $ENV{BUILD_TARGET})
+set(BUILD_TARGET_NAME $ENV{BUILD_TARGET})
 set(MIRROR "$ENV{GETTEXT_MIRROR}")
 if(NOT MIRROR)
     set(MIRROR "https://mirrors.ocf.berkeley.edu/gnu/gettext")
 endif()
 
-message(STATUS "Building gettext ${VERSION} for ${TARGET}")
+message(STATUS "Building gettext ${VERSION} for ${BUILD_TARGET_NAME}")
 
 # Paths
 set(BUILD_DIR "/tmp/build")
@@ -72,9 +72,9 @@ add_custom_target(download ALL
 )
 
 # Configure based on target
-if(TARGET STREQUAL "linux-amd64")
+if(BUILD_TARGET_NAME STREQUAL "linux-amd64")
     set(CONFIGURE_ARGS --prefix=${INSTALL_DIR} --disable-shared --enable-static)
-elseif(TARGET STREQUAL "linux-aarch64")
+elseif(BUILD_TARGET_NAME STREQUAL "linux-aarch64")
     set(ENV{CC} "aarch64-linux-gnu-gcc")
     set(ENV{CXX} "aarch64-linux-gnu-g++")
     set(CONFIGURE_ARGS
@@ -84,7 +84,7 @@ elseif(TARGET STREQUAL "linux-aarch64")
         --disable-shared
         --enable-static
     )
-elseif(TARGET STREQUAL "windows-amd64")
+elseif(BUILD_TARGET_NAME STREQUAL "windows-amd64")
     set(ENV{CC} "x86_64-w64-mingw32-gcc")
     set(ENV{CXX} "x86_64-w64-mingw32-g++")
     set(CONFIGURE_ARGS
@@ -96,26 +96,26 @@ elseif(TARGET STREQUAL "windows-amd64")
         --enable-static
     )
 else()
-    message(FATAL_ERROR "Unknown BUILD_TARGET: ${TARGET}. Supported: linux-amd64, linux-aarch64, windows-amd64")
+    message(FATAL_ERROR "Unknown BUILD_TARGET: ${BUILD_TARGET_NAME}. Supported: linux-amd64, linux-aarch64, windows-amd64")
 endif()
 
 # Build and install
 add_custom_target(build ALL
-    COMMAND ${CMAKE_COMMAND} -E echo "Configuring for ${TARGET}..."
+    COMMAND ${CMAKE_COMMAND} -E echo "Configuring for ${BUILD_TARGET_NAME}..."
     COMMAND cd ${BUILD_DIR} && ./configure ${CONFIGURE_ARGS}
     COMMAND ${CMAKE_COMMAND} -E echo "Building..."
     COMMAND cd ${BUILD_DIR} && make -j$$(nproc)
     COMMAND ${CMAKE_COMMAND} -E echo "Installing..."
     COMMAND cd ${BUILD_DIR} && make install
     DEPENDS download
-    COMMENT "Building gettext ${VERSION} for ${TARGET}"
+    COMMENT "Building gettext ${VERSION} for ${BUILD_TARGET_NAME}"
 )
 
 # Create output tarballs
 add_custom_target(package ALL
     COMMAND ${CMAKE_COMMAND} -E echo "Creating tarball..."
     COMMAND ${CMAKE_COMMAND} -E make_directory ${OUTPUT_DIR}
-    COMMAND cd ${INSTALL_DIR} && tar -czf ${OUTPUT_DIR}/${VERSION}-${TARGET}.tar.gz .
+    COMMAND cd ${INSTALL_DIR} && tar -czf ${OUTPUT_DIR}/${VERSION}-${BUILD_TARGET_NAME}.tar.gz .
     COMMAND ${CMAKE_COMMAND} -E echo "Creating source tarball..."
     COMMAND mkdir -p /tmp/${VERSION}-src
     COMMAND tar -xzf /tmp/gettext.tar.gz -C /tmp/${VERSION}-src --strip-components=1
