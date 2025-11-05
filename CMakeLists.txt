@@ -106,7 +106,7 @@ add_custom_target(stage-all
     COMMENT "Staging installed files"
 )
 
-# Create binary packages (zip and tar.gz)
+# Create binary package (zip only)
 add_custom_target(package-zip ALL
     DEPENDS stage-all
     COMMAND ${CMAKE_COMMAND} -E echo "Creating ${VERSION}-${BUILD_TARGET_NAME}.zip..."
@@ -115,10 +115,5 @@ add_custom_target(package-zip ALL
             --format=zip
             ${STAGING_DIR}
     WORKING_DIRECTORY ${STAGING_DIR}/..
-    COMMAND ${CMAKE_COMMAND} -E echo "Creating ${VERSION}-${BUILD_TARGET_NAME}.tar.gz..."
-    COMMAND ${CMAKE_COMMAND} -E tar czf
-            ${OUTPUT_DIR}/${VERSION}-${BUILD_TARGET_NAME}.tar.gz
-            ${STAGING_DIR}
-    WORKING_DIRECTORY ${STAGING_DIR}/..
-    COMMENT "Packing ${STAGING_DIR} into zip and tar.gz"
+    COMMENT "Packing ${STAGING_DIR} into zip"
 )
