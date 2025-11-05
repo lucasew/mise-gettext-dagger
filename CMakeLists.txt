@@ -76,7 +76,13 @@ endif()
 ExternalProject_Add(gettext
     URL ${DOWNLOAD_URLS}
     DOWNLOAD_NO_PROGRESS FALSE
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     TIMEOUT 30
+
+    # Prevent autotools regeneration by touching generated files
+    PATCH_COMMAND find <SOURCE_DIR> -name "aclocal.m4" -exec touch {} $<SEMICOLON>
+          COMMAND find <SOURCE_DIR> -name "Makefile.in" -exec touch {} $<SEMICOLON>
+          COMMAND find <SOURCE_DIR> -name "configure" -exec touch {} $<SEMICOLON>
 
     CONFIGURE_COMMAND ${CONFIGURE_ENV} <SOURCE_DIR>/configure ${CONFIGURE_ARGS}
     BUILD_COMMAND make -j
