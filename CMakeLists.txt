@@ -78,9 +78,9 @@ ExternalProject_Add(gettext
     INSTALL_COMMAND make install
 
     BUILD_IN_SOURCE 0
-    LOG_CONFIGURE TRUE
-    LOG_BUILD TRUE
-    LOG_INSTALL TRUE
+    USES_TERMINAL_CONFIGURE 1
+    USES_TERMINAL_BUILD 1
+    USES_TERMINAL_INSTALL 1
 )
 
 # Create output tarballs
