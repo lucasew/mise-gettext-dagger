@@ -19,18 +19,15 @@ function build_target {
     echo ""
     echo "Building ${VERSION} for ${TARGET}..."
 
-    # Run CMake build in Docker container
-    # Use --entrypoint to bypass buildenv's automatic entrypoint since we're using autotools, not CMake
+    # Run build in Docker container
+    # The buildenv container automatically runs CMake with the correct toolchain based on BUILD_TARGET
     docker run --rm \
-        --entrypoint="" \
         -v "$(pwd):/src:ro" \
         -v "${OUTPUT_DIR}:/out" \
         -e GETTEXT_VERSION="${VERSION}" \
         -e BUILD_TARGET="${TARGET}" \
         -e GETTEXT_MIRROR="${MIRROR}" \
-        -w /src \
-        "${BUILDENV_IMAGE}:${BUILDENV_VERSION}" \
-        sh -c 'cmake -S . -B /tmp/cmake-build && cmake --build /tmp/cmake-build'
+        "${BUILDENV_IMAGE}:${BUILDENV_VERSION}"
 }
 
 function build_release {

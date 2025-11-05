@@ -120,3 +120,6 @@ add_custom_target(package ALL
     DEPENDS build
     COMMENT "Creating output tarballs"
 )
+
+# Alias for buildenv compatibility (some versions expect this target)
+add_custom_target(package-zip DEPENDS package)
