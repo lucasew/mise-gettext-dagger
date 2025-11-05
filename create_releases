@@ -2,69 +2,110 @@
 set -euo pipefail
 
 # Configuration
-BUILD_DIR="${BUILD_DIR:-build}"
-PLATFORMS="${PLATFORMS:-linux-amd64 linux-aarch64}"
+BUILDENV_VERSION="0.0.1"
+TARGETS="${TARGETS:-linux-amd64 linux-aarch64 windows-amd64}"
 
-function build_release {
-  VERSION="$1"; shift
-
-  echo "Building gettext version ${VERSION}..."
-
-  # Create build directory
-  mkdir -p "${BUILD_DIR}"
-  cd "${BUILD_DIR}"
-
-  # Configure CMake
-  cmake .. \
-    -DGETTEXT_VERSION="${VERSION}" \
-    -DBUILD_PLATFORMS="${PLATFORMS// /;}"
-
-  # Build all platforms
-  cmake --build . -j "$(nproc)"
-
-  cd ..
-
-  # Create GitHub release
-  echo "" | gh release create "$VERSION" --target empty || true # if it exists no problem, I D E M P O T E N C Y
-
-  # Upload built artifacts
-  gh release upload "$VERSION" --clobber "${BUILD_DIR}/target/${VERSION}"/*
-
-  echo "✓ Successfully built and uploaded release ${VERSION}"
-}
-
+# Parse command line arguments for versions, or auto-detect
 # shellcheck disable=SC2206
 versions_to_build=($*)
 
+function build_release {
+    VERSION="$1"; shift
+
+    echo ""
+    echo "========================================"
+    echo "Building gettext version ${VERSION}"
+    echo "========================================"
+
+    # Clean previous build artifacts for this version
+    rm -rf target/"${VERSION}"
+    mkdir -p target/"${VERSION}"
+
+    # Build for each target platform
+    for TARGET in ${TARGETS}; do
+        echo ""
+        echo "Building for ${TARGET}..."
+
+        BUILD_DIR="build-${VERSION}-${TARGET}"
+        rm -rf "${BUILD_DIR}"
+
+        # Configure and build
+        GETTEXT_VERSION="${VERSION}" BUILD_TARGET="${TARGET}" \
+            cmake -B "${BUILD_DIR}" \
+            -DGETTEXT_VERSION="${VERSION}" \
+            -DBUILD_TARGET="${TARGET}" \
+            -DBUILDENV_VERSION="${BUILDENV_VERSION}"
+
+        cmake --build "${BUILD_DIR}"
+
+        # Collect artifacts
+        if [ -d "${BUILD_DIR}/out" ]; then
+            cp -v "${BUILD_DIR}"/out/*.tar.gz target/"${VERSION}"/
+        else
+            echo "WARNING: No output found in ${BUILD_DIR}/out"
+        fi
+    done
+
+    echo ""
+    echo "Built artifacts for ${VERSION}:"
+    ls -lh target/"${VERSION}"
+    echo ""
+
+    # Skip release creation if LOCAL_BUILD is set
+    if [[ -v LOCAL_BUILD ]]; then
+        echo "LOCAL_BUILD mode - skipping GitHub release"
+        return 0
+    fi
+
+    # Create GitHub release and upload artifacts
+    echo "Creating GitHub release ${VERSION}..."
+    echo "" | gh release create "${VERSION}" --target empty || true # idempotency
+
+    echo "Uploading artifacts to release ${VERSION}..."
+    gh release upload "${VERSION}" --clobber target/"${VERSION}"/*
+
+    echo "✓ Successfully built and uploaded release ${VERSION}"
+}
+
+# Auto-detect versions to build if none specified
 if [ "${#versions_to_build[@]}" -eq 0 ]; then
-  # Get list of available versions
-  ./scripts/list_versions.py > upstream_versions.txt
+    echo "Auto-detecting versions to build..."
 
-  # Get list of already released versions
-  gh release list --json tagName | jq '.[].tagName' -r > released_versions.txt
+    # Get list of available versions
+    ./scripts/list_versions.py > upstream_versions.txt
 
-  # Find versions that need to be built
-  # shellcheck disable=SC2207
-  versions_to_build=($(diff -w upstream_versions.txt released_versions.txt | grep -e '^< ' | sed 's;^< ;;'))
+    # Get list of already released versions
+    gh release list --json tagName | jq '.[].tagName' -r > released_versions.txt
 
-  # Clean up temp files
-  rm -f upstream_versions.txt released_versions.txt
+    # Find versions that need to be built
+    # shellcheck disable=SC2207
+    versions_to_build=($(diff -w upstream_versions.txt released_versions.txt | grep -e '^< ' | sed 's;^< ;;'))
+
+    # Clean up temp files
+    rm -f upstream_versions.txt released_versions.txt
 fi
 
-# shellcheck disable=SC2145
+# Show what will be built
+echo ""
+echo "========================================"
 echo "Versions to be built: "
+echo "========================================"
 for version in "${versions_to_build[@]}"; do
-  printf "\tVersion: %s\n" "$version"
+    printf "  - %s (targets: %s)\n" "$version" "${TARGETS}"
 done
+echo ""
 
 if [[ -v DRY_RUN ]]; then
-  echo "DRY_RUN mode - exiting without building"
-  exit 0
+    echo "DRY_RUN mode - exiting without building"
+    exit 0
 fi
 
 # Build each version
 for version in "${versions_to_build[@]}"; do
-  build_release "$version"
+    build_release "$version"
 done
 
+echo ""
+echo "========================================"
 echo "✓ All releases built successfully!"
+echo "========================================"

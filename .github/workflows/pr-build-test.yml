@@ -1,0 +1,61 @@
+name: PR Build Test
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  test-build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake jq gpg
+
+      - name: Pull buildenv container
+        run: docker pull ghcr.io/actions-precompiled/buildenv:0.0.1
+
+      - name: Test build for linux-amd64
+        env:
+          LOCAL_BUILD: "1"
+          TARGETS: "linux-amd64"
+        run: |
+          # Test with a known stable version
+          ./create_releases 0.22.5
+
+      - name: Verify build artifacts
+        run: |
+          echo "Checking for build artifacts..."
+          ls -lh target/0.22.5/
+
+          # Verify tarball was created
+          if [ ! -f target/0.22.5/0.22.5-linux-amd64.tar.gz ]; then
+            echo "ERROR: Expected tarball not found"
+            exit 1
+          fi
+
+          echo "✓ Build artifacts verified"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: gettext-test-build
+          path: target/0.22.5/*.tar.gz
+          retention-days: 7

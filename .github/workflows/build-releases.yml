@@ -1,0 +1,63 @@
+name: Build Releases
+
+on:
+  schedule:
+    # Run every Saturday at 2:00 AM UTC
+    - cron: '0 2 * * 6'
+  workflow_dispatch:
+    inputs:
+      versions:
+        description: 'Specific versions to build (space-separated, leave empty for auto-detect)'
+        required: false
+        type: string
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake jq gpg
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Pull buildenv container
+        run: docker pull ghcr.io/actions-precompiled/buildenv:0.0.1
+
+      - name: Build and release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -n "${{ inputs.versions }}" ]; then
+            # Build specific versions
+            ./create_releases ${{ inputs.versions }}
+          else
+            # Auto-detect and build missing versions
+            ./create_releases
+          fi
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            build-*/
+            *.log
+          retention-days: 7
