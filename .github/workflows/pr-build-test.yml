@@ -45,7 +45,7 @@ jobs:
           ls -lh target/0.22.5/
 
           # Verify all target zips were created
-          for target in linux-amd64 linux-aarch64 windows-amd64; do
+          for target in linux-amd64 windows-amd64; do
             if [ ! -f target/0.22.5/gettext-0.22.5-${target}.zip ]; then
               echo "ERROR: Expected zip file for ${target} not found"
               exit 1

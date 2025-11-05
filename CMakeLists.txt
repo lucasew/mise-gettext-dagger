@@ -49,15 +49,6 @@ endforeach()
 if(BUILD_TARGET_NAME STREQUAL "linux-amd64")
     set(CONFIGURE_ARGS --prefix=${INSTALL_DIR} --disable-shared --enable-static)
     set(CONFIGURE_ENV "")
-elseif(BUILD_TARGET_NAME STREQUAL "linux-aarch64")
-    set(CONFIGURE_ARGS
-        --prefix=${INSTALL_DIR}
-        --host=aarch64-linux-gnu
-        --build=x86_64-linux-gnu
-        --disable-shared
-        --enable-static
-    )
-    set(CONFIGURE_ENV CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++)
 elseif(BUILD_TARGET_NAME STREQUAL "windows-amd64")
     set(CONFIGURE_ARGS
         --prefix=${INSTALL_DIR}
@@ -69,7 +60,7 @@ elseif(BUILD_TARGET_NAME STREQUAL "windows-amd64")
     )
     set(CONFIGURE_ENV CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++)
 else()
-    message(FATAL_ERROR "Unknown BUILD_TARGET: ${BUILD_TARGET_NAME}. Supported: linux-amd64, linux-aarch64, windows-amd64")
+    message(FATAL_ERROR "Unknown BUILD_TARGET: ${BUILD_TARGET_NAME}. Supported: linux-amd64, windows-amd64")
 endif()
 
 # Build gettext using ExternalProject
