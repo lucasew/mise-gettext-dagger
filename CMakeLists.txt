@@ -107,7 +107,7 @@ add_custom_target(stage-all
 )
 
 # Create zip package
-add_custom_target(package-zip
+add_custom_target(package-zip ALL
     DEPENDS stage-all
     COMMAND ${CMAKE_COMMAND} -E echo "Creating ${VERSION}-${BUILD_TARGET_NAME}.zip..."
     COMMAND ${CMAKE_COMMAND} -E tar cfv
@@ -119,7 +119,7 @@ add_custom_target(package-zip
 )
 
 # Create source tarball
-add_custom_target(package-src
+add_custom_target(package-src ALL
     COMMAND ${CMAKE_COMMAND} -E echo "Creating source tarball..."
     COMMAND ${CMAKE_COMMAND} -E make_directory /tmp/${VERSION}-src
     COMMAND tar -xzf ${TARBALL_PATH} -C /tmp/${VERSION}-src --strip-components=1
@@ -127,9 +127,4 @@ add_custom_target(package-src
         ${CMAKE_COMMAND} -E tar czf ${OUTPUT_DIR}/${VERSION}-src.tar.gz ${VERSION}-src
     DEPENDS gettext
     COMMENT "Creating source tarball"
-)
-
-# Main target that builds everything
-add_custom_target(ALL_BUILD ALL
-    DEPENDS package-zip package-src
 )
