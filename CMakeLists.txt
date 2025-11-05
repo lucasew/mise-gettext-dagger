@@ -94,22 +94,42 @@ ExternalProject_Add(gettext
     USES_TERMINAL_INSTALL 1
 )
 
-# Create output tarballs
-ExternalProject_Add_Step(gettext package
-    COMMAND ${CMAKE_COMMAND} -E echo "Creating binary tarball..."
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${OUTPUT_DIR}
-    COMMAND ${CMAKE_COMMAND} -E chdir ${INSTALL_DIR}
-        ${CMAKE_COMMAND} -E tar czf ${OUTPUT_DIR}/${VERSION}-${BUILD_TARGET_NAME}.tar.gz .
+# Staging directory
+set(STAGING_DIR "${CMAKE_BINARY_DIR}/staging/${VERSION}-${BUILD_TARGET_NAME}")
 
+# Stage files from install directory
+add_custom_target(stage-all
+    COMMAND ${CMAKE_COMMAND} -E echo "Staging files to ${STAGING_DIR}..."
+    COMMAND ${CMAKE_COMMAND} -E remove_directory ${STAGING_DIR}
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${INSTALL_DIR} ${STAGING_DIR}
+    DEPENDS gettext
+    COMMENT "Staging installed files"
+)
+
+# Create zip package
+add_custom_target(package-zip
+    DEPENDS stage-all
+    COMMAND ${CMAKE_COMMAND} -E echo "Creating ${VERSION}-${BUILD_TARGET_NAME}.zip..."
+    COMMAND ${CMAKE_COMMAND} -E tar cfv
+            ${OUTPUT_DIR}/${VERSION}-${BUILD_TARGET_NAME}.zip
+            --format=zip
+            ${STAGING_DIR}
+    WORKING_DIRECTORY ${STAGING_DIR}/..
+    COMMENT "Packing ${STAGING_DIR} into zip"
+)
+
+# Create source tarball
+add_custom_target(package-src
     COMMAND ${CMAKE_COMMAND} -E echo "Creating source tarball..."
     COMMAND ${CMAKE_COMMAND} -E make_directory /tmp/${VERSION}-src
     COMMAND tar -xzf ${TARBALL_PATH} -C /tmp/${VERSION}-src --strip-components=1
     COMMAND ${CMAKE_COMMAND} -E chdir /tmp
         ${CMAKE_COMMAND} -E tar czf ${OUTPUT_DIR}/${VERSION}-src.tar.gz ${VERSION}-src
-
-    DEPENDEES install
-    COMMENT "Creating output tarballs"
+    DEPENDS gettext
+    COMMENT "Creating source tarball"
 )
 
-# Alias for buildenv compatibility
-add_custom_target(package-zip ALL DEPENDS gettext)
+# Main target that builds everything
+add_custom_target(ALL_BUILD ALL
+    DEPENDS package-zip package-src
+)
