@@ -27,42 +27,45 @@ set(OUTPUT_DIR "/out")
 # Download and extract with multi-mirror fallback
 add_custom_target(download ALL
     COMMAND ${CMAKE_COMMAND} -E echo "Downloading gettext-${VERSION}.tar.gz..."
-    COMMAND bash -c [=[
-        set -euo pipefail
+    COMMAND ${CMAKE_COMMAND} -E env
+        "MIRROR=${MIRROR}"
+        "DL_VERSION=${VERSION}"
+        bash -c [=[
+            set -euo pipefail
 
-        # List of GNU mirrors to try (ftp.gnu.org last since it's often slow)
-        MIRRORS=(
-            ']=]${MIRROR}[=['
-            'https://mirrors.ocf.berkeley.edu/gnu/gettext'
-            'https://mirror.dogado.de/gnu/gettext'
-            'https://mirror.checkdomain.de/gnu/gettext'
-            'https://ftp.cc.uoc.gr/mirrors/gnu/gettext'
-            'https://ftpmirror.gnu.org/gettext'
-            'https://ftp.gnu.org/gnu/gettext'
-        )
+            # List of GNU mirrors to try (ftp.gnu.org last since it's often slow)
+            MIRRORS=(
+                "${MIRROR}"
+                'https://mirrors.ocf.berkeley.edu/gnu/gettext'
+                'https://mirror.dogado.de/gnu/gettext'
+                'https://mirror.checkdomain.de/gnu/gettext'
+                'https://ftp.cc.uoc.gr/mirrors/gnu/gettext'
+                'https://ftpmirror.gnu.org/gettext'
+                'https://ftp.gnu.org/gnu/gettext'
+            )
 
-        FILENAME='gettext-]=]${VERSION}[=[.tar.gz'
-        SUCCESS=0
+            FILENAME="gettext-${DL_VERSION}.tar.gz"
+            SUCCESS=0
 
-        for mirror in "${MIRRORS[@]}"; do
-            url="${mirror}/${FILENAME}"
-            echo "Trying ${url}..."
+            for mirror in "${MIRRORS[@]}"; do
+                url="${mirror}/${FILENAME}"
+                echo "Trying ${url}..."
 
-            # Try downloading with wget (timeout 30s, 3 retries)
-            if wget --timeout=30 --tries=3 -q -O /tmp/gettext.tar.gz "${url}"; then
-                echo "✓ Successfully downloaded from ${mirror}"
-                SUCCESS=1
-                break
-            else
-                echo "✗ Failed to download from ${mirror}"
+                # Try downloading with wget (timeout 30s, 3 retries)
+                if wget --timeout=30 --tries=3 -q -O /tmp/gettext.tar.gz "${url}"; then
+                    echo "✓ Successfully downloaded from ${mirror}"
+                    SUCCESS=1
+                    break
+                else
+                    echo "✗ Failed to download from ${mirror}"
+                fi
+            done
+
+            if [ ${SUCCESS} -eq 0 ]; then
+                echo "ERROR: Failed to download from all mirrors!"
+                exit 1
             fi
-        done
-
-        if [ ${SUCCESS} -eq 0 ]; then
-            echo "ERROR: Failed to download from all mirrors!"
-            exit 1
-        fi
-    ]=]
+        ]=]
     COMMAND ${CMAKE_COMMAND} -E make_directory ${BUILD_DIR}
     COMMAND tar -xzf /tmp/gettext.tar.gz -C ${BUILD_DIR} --strip-components=1
     COMMENT "Downloading and extracting gettext ${VERSION}"
