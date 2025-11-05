@@ -45,9 +45,9 @@ jobs:
           echo "Checking for build artifacts..."
           ls -lh target/0.22.5/
 
-          # Verify tarball was created
-          if [ ! -f target/0.22.5/0.22.5-linux-amd64.tar.gz ]; then
-            echo "ERROR: Expected tarball not found"
+          # Verify zip was created
+          if [ ! -f target/0.22.5/0.22.5-linux-amd64.zip ]; then
+            echo "ERROR: Expected zip file not found"
             exit 1
           fi
 
@@ -57,5 +57,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: gettext-test-build
-          path: target/0.22.5/*.tar.gz
+          path: target/0.22.5/*.zip
           retention-days: 7
