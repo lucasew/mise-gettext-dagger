@@ -47,10 +47,13 @@ endforeach()
 
 # Configure based on target
 if(BUILD_TARGET_NAME STREQUAL "linux-amd64")
-    set(CONFIGURE_ARGS --prefix=${INSTALL_DIR} --disable-shared --enable-static)
-    set(CONFIGURE_ENV "")
+    set(CONFIGURE_COMMAND <SOURCE_DIR>/configure --prefix=${INSTALL_DIR} --disable-shared --enable-static)
 elseif(BUILD_TARGET_NAME STREQUAL "windows-amd64")
-    set(CONFIGURE_ARGS
+    set(CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env
+        CC=x86_64-w64-mingw32-gcc
+        CXX=x86_64-w64-mingw32-g++
+        CPPFLAGS=-Dlocale_t=_locale_t
+        <SOURCE_DIR>/configure
         --prefix=${INSTALL_DIR}
         --host=x86_64-w64-mingw32
         --target=x86_64-w64-mingw32
@@ -58,7 +61,6 @@ elseif(BUILD_TARGET_NAME STREQUAL "windows-amd64")
         --disable-shared
         --enable-static
     )
-    set(CONFIGURE_ENV CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++ CFLAGS=-Dlocale_t=_locale_t)
 else()
     message(FATAL_ERROR "Unknown BUILD_TARGET: ${BUILD_TARGET_NAME}. Supported: linux-amd64, windows-amd64")
 endif()
@@ -75,7 +77,7 @@ ExternalProject_Add(gettext
           COMMAND find <SOURCE_DIR> -name "Makefile.in" -exec touch {} $<SEMICOLON>
           COMMAND find <SOURCE_DIR> -name "configure" -exec touch {} $<SEMICOLON>
 
-    CONFIGURE_COMMAND ${CONFIGURE_ENV} <SOURCE_DIR>/configure ${CONFIGURE_ARGS}
+    CONFIGURE_COMMAND ${CONFIGURE_COMMAND}
     BUILD_COMMAND make -j
     INSTALL_COMMAND make install
 
