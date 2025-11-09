@@ -2,6 +2,7 @@
 target
 build/
 downloads/
+.ccache/
 
 # CMake artifacts
 CMakeCache.txt

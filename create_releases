@@ -2,10 +2,11 @@
 set -euo pipefail
 
 # Configuration
-BUILDENV_VERSION="0.0.3"
+BUILDENV_VERSION="0.0.4"
 BUILDENV_IMAGE="ghcr.io/actions-precompiled/buildenv"
 TARGETS="${TARGETS:-linux-amd64 windows-amd64}"
 MIRROR="${GETTEXT_MIRROR:-https://mirrors.ocf.berkeley.edu/gnu/gettext}"
+CCACHE_DIR="${CCACHE_DIR:-$(pwd)/.ccache}"
 
 # Parse command line arguments for versions, or auto-detect
 # shellcheck disable=SC2206
@@ -19,6 +20,9 @@ function build_target {
     echo ""
     echo "Building ${VERSION} for ${TARGET}..."
 
+    # Ensure ccache directory exists
+    mkdir -p "${CCACHE_DIR}"
+
     # Run build in Docker container
     # The buildenv container automatically runs CMake with the correct toolchain based on BUILD_TARGET
     # Run as current user to avoid permission issues with mounted volumes
@@ -26,9 +30,11 @@ function build_target {
         --user "$(id -u):$(id -g)" \
         -v "$(pwd):/src:ro" \
         -v "${OUTPUT_DIR}:/out" \
+        -v "${CCACHE_DIR}:/ccache" \
         -e GETTEXT_VERSION="${VERSION}" \
         -e BUILD_TARGET="${TARGET}" \
         -e GETTEXT_MIRROR="${MIRROR}" \
+        -e CCACHE_DIR="/ccache" \
         "${BUILDENV_IMAGE}:${BUILDENV_VERSION}"
 }
 
